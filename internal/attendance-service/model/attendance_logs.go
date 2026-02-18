@@ -4,16 +4,16 @@ import "time"
 
 type Attendance struct {
 	ID           int       `gorm:"primaryKey"`
-	BH           int64     `gorm:"column:bh"`
+	BH           int64     `gorm:"column:bh;uniqueIndex"`
 	UserSerial   int       `gorm:"column:user_serial"`
-	UserNo       string    `gorm:"column:user_no"`
+	UserNo       string    `gorm:"column:user_no;index"`
 	UserLName    string    `gorm:"column:user_lname"`
 	DepNo        string    `gorm:"column:dep_no"`
 	UserDep      int       `gorm:"column:user_dep"`
 	UserDepName  string    `gorm:"column:user_depname"`
 	UserType     int       `gorm:"column:user_type"`
 	UserCard     string    `gorm:"column:user_card"`
-	SJ           time.Time `gorm:"column:sj"` // ✅ ใช้ sj ไม่ใช่ punch_time
+	SJ           time.Time `gorm:"column:sj"`
 	Iden         string    `gorm:"column:iden"`
 	FX           int       `gorm:"column:fx"`
 	JlzpSerial   int       `gorm:"column:jlzp_serial"`
@@ -24,5 +24,5 @@ type Attendance struct {
 }
 
 func (Attendance) TableName() string {
-	return "attendance"
+	return "attendance_logs"
 }

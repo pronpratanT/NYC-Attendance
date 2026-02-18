@@ -23,14 +23,16 @@ func ConnectDB() *gorm.DB {
 		return AppDB
 	}
 
+	config.LoadConfig()
+
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	password := os.Getenv("DB_PASSWORD")
 	user := os.Getenv("DB_USER")
 	dbname := os.Getenv("DB_NAME")
 
-	log.Printf("DB env: host=%s port=%s user=%s db=%s",
-		host, port, user, dbname)
+	log.Printf("DB env: host=%s port=%s user=%s password=%s db=%s",
+		host, port, user, password, dbname)
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",

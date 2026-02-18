@@ -73,16 +73,22 @@ func (s *AttendanceService) syncRange(startBH, endBH int64) {
 
 		for _, r := range cloudRecords {
 			insertData = append(insertData, model.Attendance{
-				BH:          r.BH,
-				UserNo:      r.UserNo,
-				SJ:          r.SJ,
-				MC:          r.MC,
-				UserLName:   r.UserLName,
-				DepNo:       r.DepNo,
-				UserDep:     r.UserDep,
-				UserDepName: r.UserDepName,
-				UserType:    r.UserType,
-				UserCard:    r.UserCard,
+				BH:           r.BH,
+				UserSerial:   r.UserSerial,
+				UserNo:       r.UserNo,
+				UserLName:    r.UserLName,
+				DepNo:        r.DepNo,
+				UserDep:      r.UserDep,
+				UserDepName:  r.UserDepName,
+				UserType:     r.UserType,
+				UserCard:     r.UserCard,
+				SJ:           r.SJ,
+				Iden:         r.Iden,
+				FX:           r.FX,
+				JlzpSerial:   r.JlzpSerial,
+				DevSerial:    r.DevSerial,
+				MC:           r.MC,
+				HealthStatus: r.HealthStatus,
 			})
 		}
 

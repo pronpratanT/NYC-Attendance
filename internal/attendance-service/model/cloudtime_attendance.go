@@ -3,22 +3,22 @@ package model
 import "time"
 
 type CloudtimeAttendance struct {
-	BH           int64
-	UserSerial   int
-	UserNo       string
-	UserLName    string
-	DepNo        string
-	UserDep      int
-	UserDepName  string
-	UserType     int
-	UserCard     string
-	SJ           time.Time
-	Iden         string
-	FX           int
-	JlzpSerial   int
-	DevSerial    string
-	MC           string
-	HealthStatus int
+	BH           int64     `gorm:"column:bh"`
+	UserSerial   int       `gorm:"column:user_serial"`
+	UserNo       string    `gorm:"column:user_no"`
+	UserLName    string    `gorm:"column:user_lname"`
+	DepNo        string    `gorm:"column:dep_no"`
+	UserDep      int       `gorm:"column:user_dep"`
+	UserDepName  string    `gorm:"column:user_depname"`
+	UserType     int       `gorm:"column:user_type"`
+	UserCard     string    `gorm:"column:user_card"`
+	SJ           time.Time `gorm:"column:sj"`
+	Iden         string    `gorm:"column:iden"`
+	FX           int       `gorm:"column:fx"`
+	JlzpSerial   int       `gorm:"column:jlzp_serial"`
+	DevSerial    string    `gorm:"column:dev_serial"`
+	MC           string    `gorm:"column:mc"`
+	HealthStatus int       `gorm:"column:healthstatus"`
 }
 
 func (CloudtimeAttendance) TableName() string {
