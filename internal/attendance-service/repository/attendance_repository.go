@@ -1,7 +1,8 @@
 package repository
 
 import (
-	"github.com/pronpratanT/leave-system/internal/attendance-service/model"
+	"hr-program/internal/attendance-service/model"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

@@ -1,11 +1,10 @@
 package service
 
 import (
+	"hr-program/internal/attendance-service/model"
+	"hr-program/internal/attendance-service/repository"
 	"log"
 	"sync"
-
-	"github.com/pronpratanT/leave-system/internal/attendance-service/model"
-	"github.com/pronpratanT/leave-system/internal/attendance-service/repository"
 )
 
 type AttendanceService struct {
@@ -61,7 +60,7 @@ func (s *AttendanceService) syncRange(startBH, endBH int64) {
 
 		cloudRecords, err := s.CloudRepo.GetBatchByBHRange(lastBH, endBH, batchSize)
 		if err != nil {
-			log.Println("Fetch error:", err)
+			log.Println("Fetch attendance error:", err)
 			return
 		}
 
@@ -94,7 +93,7 @@ func (s *AttendanceService) syncRange(startBH, endBH int64) {
 
 		err = s.AppRepo.BulkInsert(insertData)
 		if err != nil {
-			log.Println("Insert error:", err)
+			log.Println("Insert attendance error:", err)
 			return
 		}
 

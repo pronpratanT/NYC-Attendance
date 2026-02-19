@@ -1,0 +1,51 @@
+เป้าหมายระยะแรก: ยังไม่คำนวณ OT/late แค่สร้าง 1 record ต่อ 1 วัน/คน และเก็บ raw_scans_json, first_in, last_out
+
+1) กำหนด window ของวันทำงาน
+- [ ] เลือก cutoff time (เช่น 04:00)
+- [ ] นิยาม from/to สำหรับแต่ละ work_date D
+    - from = D 04:00
+    - to   = D+1 03:59:59
+
+2) ดึง log จาก attendance_logs ตามช่วงเวลา
+- [ ] เขียนฟังก์ชัน GetLogsByTimeRange(from, to) จากตาราง attendance_logs
+  - ใช้คอลัมน์ sj เป็นช่วงเวลา
+  - ดึง field ที่ต้องใช้: user_no, user_serial, sj, dev_serial ฯลฯ
+
+3) group log ตาม user ต่อวัน
+- [ ] จาก slice logs สร้าง map
+	key   = user_no
+	value = []logs ของ user นั้นในช่วง from–to
+
+4) map user_no -> user_id
+- [ ] ดึง users ทั้งหมด (id, employee_id) มาสร้าง map
+	key   = employee_id (ต้องเท่ากับ user_no)
+	value = id (user_id)
+- [ ] เวลาเจอ user_no ที่หาไม่เจอใน map
+	- log warning ไว้ก่อน
+	- ยังไม่สร้าง attendance_daily ให้ user นั้น
+
+5) เตรียมข้อมูลสำหรับ insert attendance_daily
+- [ ] สำหรับแต่ละ user_no ใน map:
+	- sort logs ตามเวลา sj ASC
+	- first_in  = logs[0].sj
+	- last_out  = logs[last].sj
+	- raw_scans_json = JSON ของ logs ทั้งชุด
+	- work_date = วันที่ D (ตาม loop)
+
+6) map field attendance_logs -> attendance_daily (เฟสแรก)
+- [ ] attendance_daily.user_id        <- users.id (จาก user_no)
+- [ ] attendance_daily.work_date      <- D (วันที่ของรอบนั้น)
+- [ ] attendance_daily.first_in       <- first_in (sj แรกของวัน)
+- [ ] attendance_daily.last_out       <- last_out (sj สุดท้ายของวัน)
+- [ ] attendance_daily.raw_scans_json <- json.Marshal([]AttendanceLog ของวัน/คน)
+- [ ] field อื่นใน attendance_daily ปล่อยค่า default/null ไปก่อน (เช่น OT, late_minutes, attendance_status ฯลฯ)
+
+7) upsert ลงตาราง attendance_daily
+- [ ] ตั้ง unique key บน (user_id, work_date)
+- [ ] ใช้ GORM OnConflict บน (user_id, work_date)
+	เฟสแรก: DO NOTHING หรือ DO UPDATE เฉพาะ raw_scans_json/first_in/last_out
+
+8) entrypoint สำหรับรัน job
+- [ ] เขียนฟังก์ชัน CreateDailyForDate(D) ที่ทำข้อ 1–7
+- [ ] เพิ่ม cmd หรือ route ชั่วคราวเพื่อเรียก CreateDailyForDate สำหรับช่วงวันที่ต้องการ (เช่น วันนี้ หรือย้อนหลัง N วัน)
+

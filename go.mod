@@ -1,4 +1,4 @@
-module github.com/pronpratanT/leave-system
+module hr-program
 
 go 1.24.6
 

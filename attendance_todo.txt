@@ -1,0 +1,39 @@
+Phase 1 – กำหนดกติกาและขอบเขต
+- [ ] กำหนด cutoff time ของวันทำงาน (เช่น 04:00) เพื่อจัดกลุ่ม scan ระหว่างวัน D 04:00 ถึง D+1 03:59 เป็น work_date = D
+- [ ] ยืนยัน key ของ attendance_daily คือ (user_id, work_date) เป็น unique
+- [ ] กำหนด mapping ชุดแรกจาก attendance_logs -> attendance_daily (user_no/user_serial, sj, ฯลฯ -> user_id, work_date, first_in, last_out, raw_scans_json)
+
+Phase 2 – เตรียม models และ repositories
+- [ ] ตรวจ model attendance_logs ให้ field/tag ตรงกับตาราง attendance_logs
+- [ ] ใช้ model attendance_daily ที่มีอยู่แล้วให้ครบ field พื้นฐาน (user_id, work_date, first_in, last_out, raw_scans_json)
+- [ ] สร้าง repository อ่าน attendance_logs (internal/attendance-service/repository/attendance_logs_repository.go)
+	- [ ] ฟังก์ชันดึง log ตามช่วงเวลา เช่น GetLogsByTimeRange(start, end)
+- [ ] สร้าง repository เขียน attendance_daily (internal/attendance-service/repository/attendance_daily_repository.go)
+	- [ ] ฟังก์ชัน UpsertDaily() โดยใช้ ON CONFLICT บน (user_id, work_date)
+
+Phase 3 – เขียน service สำหรับคำนวณรายวัน
+- [ ] สร้าง service ใหม่สำหรับคำนวณ attendance รายวัน (internal/attendance-service/service/attendance_daily_calculator.go)
+- [ ] ฉีด dependency: LogsRepo, DailyRepo, UserRepo (map user_no -> user_id)
+- [ ] เขียนเมธอด RecalculateRange(startDate, endDate)
+	- [ ] loop ทีละวัน D ในช่วง [startDate..endDate]
+	- [ ] เรียก calculateForDate(D)
+- [ ] เขียน calculateForDate(D)
+	- [ ] คำนวณ window เวลา: from = D + cutoff, to = D+1 + cutoff
+	- [ ] ดึง log ทั้งหมดในช่วง [from, to) จาก attendance_logs
+	- [ ] group log ตาม user_no
+	- [ ] map user_no -> user_id จากตาราง users (cache ในหน่วยความจำ)
+	- [ ] sort log ตามเวลา sj
+	- [ ] เซ็ต first_in = scan แรกของวัน, last_out = scan สุดท้ายของวัน
+	- [ ] marshal logs ทั้งชุดของวัน/คน ลง raw_scans_json
+	- [ ] สร้าง AttendanceDaily แล้วเรียก UpsertDaily
+
+Phase 4 – ผูกกับ main / job
+- [ ] เพิ่ม entrypoint หรือ cmd แยกสำหรับรันคำนวณ attendance_daily (เช่น cmd/dailycalc/main.go)
+- [ ] โหลด config + connect DB และสร้าง repos/services ที่ต้องใช้
+- [ ] เรียก RecalculateRange สำหรับช่วงวันที่ต้องการ (วันนี้ หรือย้อนหลัง N วัน)
+
+Phase 5 – ตรวจผลและค่อยเพิ่ม logic อื่น
+- [ ] ตรวจ sample 1–2 user/วัน ว่า raw_scans_json เก็บครบทุก scan ใน window
+- [ ] ตรวจว่า first_in / last_out ตรงกับพฤติกรรมจริง
+- [ ] เมื่อพื้นฐานถูกต้อง ค่อยเพิ่ม logic คำนวณ field อื่นใน attendance_daily (day_type, attendance_status, OT, late_minutes ฯลฯ)
+
