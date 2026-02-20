@@ -1,6 +1,7 @@
 package main
 
 import (
+	"hr-program/internal/attendance-service/handler"
 	attrepo "hr-program/internal/attendance-service/repository"
 	deprepo "hr-program/internal/user-service/repository/departments"
 	usrrepo "hr-program/internal/user-service/repository/users"
@@ -11,6 +12,8 @@ import (
 	attservice "hr-program/internal/attendance-service/service"
 	usrservice "hr-program/internal/user-service/service"
 	"log"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -21,6 +24,7 @@ func main() {
 	// Connect DBs
 	appDB := db.ConnectDB()
 	cloudDB := db.ConnectCloudtime()
+	r := gin.Default()
 
 	// Init repositories for attendance service
 	attAppRepo := attrepo.NewAttendanceRepository(appDB)
@@ -37,21 +41,23 @@ func main() {
 	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo)
 	departmentService := usrservice.NewDepartmentsService(depCloudRepo, depAppRepo)
 
-	// Run sync (2 worker parallel)
-	err := attendanceService.SyncFullLoad()
-	if err != nil {
-		log.Fatal("Sync attendance failed:", err)
-	}
+	// handler
+	attendanceHandler := handler.NewAttendanceHandler(attendanceService)
+	handler.RegisterAttendanceRoutes(r, attendanceHandler)
 
-	err = userService.SyncFullLoad()
-	if err != nil {
-		log.Fatal("Sync users failed:", err)
-	}
+	// Run sync (2 worker parallel) เบื้องหลัง
+	go func() {
+		if err := attendanceService.SyncFullLoad(); err != nil {
+			log.Println("Sync attendance failed:", err)
+		}
+		if err := userService.SyncFullLoad(); err != nil {
+			log.Println("Sync users failed:", err)
+		}
+		if err := departmentService.SyncFullLoad(); err != nil {
+			log.Println("Sync departments failed:", err)
+		}
+		log.Println("Sync completed successfully")
+	}()
 
-	err = departmentService.SyncFullLoad()
-	if err != nil {
-		log.Fatal("Sync departments failed:", err)
-	}
-
-	log.Println("Sync completed successfully")
+	r.Run(":8080")
 }
