@@ -12,6 +12,10 @@ type UserRepository struct {
 	DB *gorm.DB
 }
 
+type UserRepositoryInterface interface {
+	GetUserIDMapByEmployeeIDs(employeeIDs []string) (map[string]int64, error)
+}
+
 func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{DB: db}
 }
@@ -58,4 +62,24 @@ func (r *UserRepository) GetAllUsers() ([]model.Users, error) {
 		users = append(users, user)
 	}
 	return users, nil
+}
+
+func (r *UserRepository) GetUserIDMapByEmployeeIDs(employeeIDs []string) (map[string]int64, error) {
+	var users []model.Users
+
+	err := r.DB.
+		Select("id, employee_id").
+		Where("employee_id IN ?", employeeIDs).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]int64)
+	for _, u := range users {
+		result[u.EmployeeID] = u.ID
+	}
+
+	return result, nil
 }

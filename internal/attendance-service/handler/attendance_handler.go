@@ -20,3 +20,17 @@ func (h *AttendanceHandler) GetAttendanceLogs(c *gin.Context) {
 		"data": logs,
 	})
 }
+
+func (h *AttendanceHandler) GetAttendanceDaily(c *gin.Context) {
+	daily, err := h.Service.AppRepo.GetAttendanceDaily()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to retrieve attendance daily",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": daily,
+	})
+}

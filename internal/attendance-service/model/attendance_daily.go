@@ -41,11 +41,24 @@ type AttendanceDaily struct {
 	IsEdited          bool            `gorm:"column:is_edited;default:false"`
 	IsLocked          bool            `gorm:"column:is_locked;default:false"`
 	RawScansJSON      json.RawMessage `gorm:"column:raw_scans_json;type:jsonb"`
+	EditedScansJSON   json.RawMessage `gorm:"column:edited_scans_json;type:jsonb"`
+	EditVersion       int             `gorm:"column:edit_version;default:0"`
 
 	// System metadata
 	CalculatedAt *time.Time `gorm:"column:calculated_at"`
 	CreatedAt    time.Time  `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt    time.Time  `gorm:"column:updated_at;autoUpdateTime"`
+}
+
+// EditableScan represents a scan that can be edited
+type EditableScan struct {
+	ScanTime  time.Time  `json:"scan_time"`
+	Type      string     `json:"type"`   // in / out
+	Action    string     `json:"action"` // added / edited / deleted
+	CreatedBy int64      `json:"created_by"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedBy *int64     `json:"updated_by,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 func (AttendanceDaily) TableName() string {

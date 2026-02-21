@@ -11,7 +11,7 @@ func (r *AttendanceRepository) GetAttendanceLogs() ([]model.Attendance, error) {
 		log.Println("Failed to get raw DB connection:", err)
 		return nil, err
 	}
-	rows, err := sqlDB.Query("SELECT id, bh, user_serial, user_no, user_lname, dep_no, user_dep, user_depname, user_type, user_card, sj, iden, fx, jlzp_serial, dev_serial, mc, health_status, created_at FROM attendance_logs WHERE user_no = '7581' ORDER BY id DESC LIMIT 100")
+	rows, err := sqlDB.Query("SELECT id, bh, user_serial, user_no, user_lname, dep_no, user_dep, user_depname, user_type, user_card, sj, iden, fx, jlzp_serial, dev_serial, mc, health_status, created_at FROM attendance_logs WHERE user_no = '7581' ORDER BY bh DESC")
 	if err != nil {
 		log.Println("Failed to execute query:", err)
 		return nil, err
