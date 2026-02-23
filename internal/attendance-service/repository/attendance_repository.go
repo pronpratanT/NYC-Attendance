@@ -2,6 +2,7 @@ package repository
 
 import (
 	"hr-program/internal/attendance-service/model"
+	"log"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -36,8 +37,12 @@ func (r *AttendanceRepository) SaveAttendanceDaily(data []model.AttendanceDaily)
 func (r *AttendanceRepository) GetAttendanceDaily() ([]model.AttendanceDaily, error) {
 	var attendance []model.AttendanceDaily
 	if err := r.DB.
+		Model(&model.AttendanceDaily{}).
+		Omit("ShiftStart", "ShiftEnd").
 		Order("work_date ASC").
+		Limit(100).
 		Find(&attendance).Error; err != nil {
+		log.Println("Failed to get attendance daily:", err)
 		return nil, err
 	}
 	return attendance, nil

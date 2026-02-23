@@ -99,13 +99,11 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 			WorkDate:         key.WorkDate,
 			DayType:          "workday", // สมมติเป็นวันทำงานก่อน
 			AttendanceStatus: "present",
-
-			FirstIn:      &firstIn,
-			LastOut:      &lastOut,
-			TotalScans:   len(logs),
-			RawScansJSON: rawJSON,
-
-			CalculatedAt: ptrTime(now),
+			FirstIn:          &firstIn,
+			LastOut:          &lastOut,
+			TotalScans:       len(logs),
+			RawScansJSON:     rawJSON,
+			CalculatedAt:     ptrTime(now),
 		}
 
 		// แปลง attendance logs -> []EditableScan -> EditedScansJSON
@@ -126,6 +124,43 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 		}
 		daily.EditedScansJSON = b
 		daily.EditVersion = 0
+
+		// =========================
+		// 🔹 กำหนด Shift ตรงนี้
+		// =========================
+		// shift = mockup shift 8:00-17:00
+		shift := s.getMockShift(key.UserID, key.WorkDate)
+
+		shiftStart := time.Date(
+			key.WorkDate.Year(),
+			key.WorkDate.Month(),
+			key.WorkDate.Day(),
+			shift.StartHour,
+			shift.StartMinute,
+			0, 0,
+			key.WorkDate.Location(),
+		)
+
+		shiftEnd := time.Date(
+			key.WorkDate.Year(),
+			key.WorkDate.Month(),
+			key.WorkDate.Day(),
+			shift.EndHour,
+			shift.EndMinute,
+			0, 0,
+			key.WorkDate.Location(),
+		)
+
+		daily.ShiftStart = &shiftStart
+		daily.ShiftEnd = &shiftEnd
+		daily.BreakMinutes = shift.BreakMinutes
+
+		// =========================
+		// 🔹 เรียก calculate หลังจากมีข้อมูลครบ
+		// =========================
+		if err := s.calculateWorkMinutes(&daily); err != nil {
+			return nil, err
+		}
 
 		result = append(result, daily)
 	}
@@ -148,3 +183,110 @@ func fxToType(fx int) string {
 		return "in" // หรือค่า default อื่น
 	}
 }
+
+func (s *AttendanceService) calculateWorkMinutes(daily *model.AttendanceDaily) error {
+	if daily.ShiftStart == nil || daily.ShiftEnd == nil {
+		return nil // ไม่มีข้อมูลกะงาน ไม่สามารถคำนวณได้
+	}
+
+	var scans []model.EditableScan
+	if err := json.Unmarshal(daily.EditedScansJSON, &scans); err != nil {
+		return err
+	}
+
+	if len(scans) == 0 {
+		return nil // ไม่มีสแกน ไม่สามารถคำนวณได้
+	}
+
+	// เรียงสแกนตามเวลา
+	sort.Slice(scans, func(i, j int) bool {
+		return scans[i].ScanTime.Before(scans[j].ScanTime)
+	})
+
+	shiftStart := daily.ShiftStart
+	shiftEnd := daily.ShiftEnd
+
+	// 1. คำนวณ Total Work Minutes
+	totalMinutes := 0
+	var currentIn *time.Time
+
+	for _, scan := range scans {
+		if scan.Action == "deleted" {
+			continue // ข้ามสแกนที่ถูกลบ
+		}
+
+		switch scan.Type {
+		case "in":
+			currentIn = &scan.ScanTime
+		case "out":
+			if currentIn != nil {
+				// คำนวณเวลาทำงานระหว่าง currentIn กับ scan.ScanTime
+				duration := scan.ScanTime.Sub(*currentIn)
+				totalMinutes += int(duration.Minutes())
+				currentIn = nil
+			}
+		}
+	}
+
+	// ถ้า in ค้าง -> missing scan
+	if currentIn != nil {
+		daily.MissingScan = true // มีสแกนเข้าแต่ไม่มีสแกนออก
+	}
+
+	// จำกัดเวลาทำงานปกติ สูงสุดไม่เกิน 8 ชั่วโมง (480 นาที)
+	if totalMinutes > 480 {
+		totalMinutes = 480
+	}
+
+	daily.TotalWorkMinutes = totalMinutes
+
+	// 2. คำนวณ Late Minutes มาสาย
+	first := scans[0]
+	late := 0
+	graceMinutes := 1 // กำหนดเวลายืดหยุ่น 1 นาที
+
+	if first.Type == "in" && first.ScanTime.After(*shiftStart) {
+
+		diff := int(first.ScanTime.Sub(*shiftStart).Minutes())
+
+		if diff > graceMinutes {
+			late = diff
+		} else {
+			late = 0
+		}
+	}
+
+	daily.LateMinutes = late
+
+	// 3. คำนวณ Early Leave Minutes กลับก่อน
+	last := scans[len(scans)-1]
+	early := 0
+	if last.Type == "out" && last.ScanTime.Before(*shiftEnd) {
+		early = int(shiftEnd.Sub(last.ScanTime).Minutes())
+	}
+
+	daily.EarlyLeaveMinutes = early
+
+	return nil
+}
+
+// ------------Mockup shift---------------
+type Shift struct {
+	StartHour    int
+	StartMinute  int
+	EndHour      int
+	EndMinute    int
+	BreakMinutes int
+}
+
+func (s *AttendanceService) getMockShift(userID int64, workDate time.Time) Shift {
+	return Shift{
+		StartHour:    8,
+		StartMinute:  0,
+		EndHour:      17,
+		EndMinute:    0,
+		BreakMinutes: 60,
+	}
+}
+
+// ---------------------------------------
