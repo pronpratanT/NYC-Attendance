@@ -38,9 +38,7 @@ func (r *AttendanceRepository) GetAttendanceDaily() ([]model.AttendanceDaily, er
 	var attendance []model.AttendanceDaily
 	if err := r.DB.
 		Model(&model.AttendanceDaily{}).
-		Omit("ShiftStart", "ShiftEnd").
 		Order("work_date ASC").
-		Limit(100).
 		Find(&attendance).Error; err != nil {
 		log.Println("Failed to get attendance daily:", err)
 		return nil, err

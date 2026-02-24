@@ -16,6 +16,7 @@ import (
 var (
 	CloudtimeDB *gorm.DB
 	AppDB       *gorm.DB
+	EconsDB     *gorm.DB
 )
 
 func ConnectDB() *gorm.DB {
@@ -83,4 +84,32 @@ func ConnectCloudtime() *gorm.DB {
 	CloudtimeDB = db
 	log.Println("Cloudtime Connected Successfully")
 	return CloudtimeDB
+}
+
+func ConnectEcons() *gorm.DB {
+	if EconsDB != nil {
+		return EconsDB
+	}
+
+	config.LoadConfig()
+
+	db, err := gorm.Open(mysql.Open(config.AppConfig.ECONS_SQLSERVER_DSN), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+	if err != nil {
+		panic("Error connecting ECONS SQL Server: " + err.Error())
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		panic("Error getting sqlDB for ECONS: " + err.Error())
+	}
+
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(50)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
+
+	EconsDB = db
+	log.Println("ECONS SQL Server Connected Successfully")
+	return EconsDB
 }

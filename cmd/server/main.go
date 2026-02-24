@@ -13,6 +13,7 @@ import (
 	attservice "hr-program/internal/attendance-service/service"
 	usrservice "hr-program/internal/user-service/service"
 	"log"
+	"time"
 )
 
 func main() {
@@ -43,21 +44,38 @@ func main() {
 	attendanceHandler := handler.NewAttendanceHandler(attendanceService)
 	r := router.AttendanceRouter(attendanceHandler)
 
-	// Run sync (2 worker parallel) เบื้องหลัง
+	// Initial sync เบื้องหลังครั้งแรกตอน start service
 	go func() {
 		if err := attendanceService.SyncFullLoad(); err != nil {
-			log.Println("Sync attendance failed:", err)
+			log.Println("Initial sync attendance failed:", err)
 		}
 		if err := userService.SyncFullLoad(); err != nil {
-			log.Println("Sync users failed:", err)
+			log.Println("Initial sync users failed:", err)
 		}
 		if err := departmentService.SyncFullLoad(); err != nil {
-			log.Println("Sync departments failed:", err)
+			log.Println("Initial sync departments failed:", err)
 		}
 		if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
-			log.Println("Process attendance daily failed:", err)
+			log.Println("Initial process attendance daily failed:", err)
 		}
-		log.Println("Sync completed successfully")
+		log.Println("Initial sync completed successfully")
+	}()
+
+	// Scheduler รัน sync + generate attendance_daily ซ้ำทุก ๆ 5 นาที โดยไม่ต้อง restart container
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := attendanceService.SyncFullLoad(); err != nil {
+				log.Println("Scheduled sync attendance failed:", err)
+				continue
+			}
+			if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
+				log.Println("Scheduled process attendance daily failed:", err)
+				continue
+			}
+			log.Println("Scheduled sync + attendance daily completed")
+		}
 	}()
 
 	r.Run(":8080")

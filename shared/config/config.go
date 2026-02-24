@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	AppPort      string
-	AppDSN       string
-	CloudtimeDSN string
+	AppPort             string
+	AppDSN              string
+	ECONS_SQLSERVER_DSN string
+	CloudtimeDSN        string
 }
 
 var AppConfig *Config
@@ -19,16 +20,16 @@ var AppConfig *Config
 func LoadConfig() {
 	// โหลดตัวแปรจากไฟล์ .env และให้ค่าจากไฟล์ override env เดิม (เช่น DB_USER, DB_NAME ที่อาจตั้งไว้ในระบบ)
 	_ = godotenv.Overload()
-
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
-
-	if host == "" {
-		log.Fatal("DB_HOST not set")
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, relying on environment variables")
 	}
+
+	// ดึงและ validate env ที่จำเป็นสำหรับ Postgres
+	host := mustEnv("DB_HOST")
+	port := mustEnv("DB_PORT")
+	user := mustEnv("DB_USER")
+	password := mustEnv("DB_PASSWORD")
+	dbname := mustEnv("DB_NAME")
 
 	// 🔥 build postgres dsn
 	appDSN := fmt.Sprintf(
@@ -36,14 +37,29 @@ func LoadConfig() {
 		host, port, user, password, dbname,
 	)
 
-	AppConfig = &Config{
-		AppPort:      getEnv("PORT", "8080"),
-		AppDSN:       appDSN,
-		CloudtimeDSN: os.Getenv("CLOUDTIME_DSN"),
-	}
+	// ECONS SQL Server DSN
+	sqlUser := mustEnv("SQLSERVER_USER")
+	sqlPass := mustEnv("SQLSERVER_PASSWORD")
+	sqlHost := mustEnv("SQLSERVER_HOST")
+	sqlPort := mustEnv("SQLSERVER_PORT")
+	sqlDB := mustEnv("SQLSERVER_DB")
 
-	if AppConfig.CloudtimeDSN == "" {
-		log.Fatal("CLOUDTIME_DSN not set")
+	ECONS_SQLSERVER_DSN := fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=%s",
+		sqlUser,
+		sqlPass,
+		sqlHost,
+		sqlPort,
+		sqlDB,
+	)
+
+	// Cloudtime DSN
+	cloudtimeDSN := mustEnv("CLOUDTIME_DSN")
+
+	AppConfig = &Config{
+		AppPort:             getEnv("PORT", "8080"),
+		AppDSN:              appDSN,
+		ECONS_SQLSERVER_DSN: ECONS_SQLSERVER_DSN,
+		CloudtimeDSN:        cloudtimeDSN,
 	}
 }
 
@@ -51,6 +67,15 @@ func getEnv(key, fallback string) string {
 	val := os.Getenv(key)
 	if val == "" {
 		return fallback
+	}
+	return val
+}
+
+// mustEnv คืนค่า env ถ้ามีค่า และถ้าไม่มีจะ log.Fatal เพื่อหยุดโปรแกรมทันที
+func mustEnv(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Fatalf("%s not set", key)
 	}
 	return val
 }

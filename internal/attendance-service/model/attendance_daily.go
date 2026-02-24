@@ -16,10 +16,10 @@ type AttendanceDaily struct {
 	DayType          string `gorm:"column:day_type;size:20;not null"`          // workday / weekend / holiday
 	AttendanceStatus string `gorm:"column:attendance_status;size:20;not null"` // present / late / absent / leave / missing_scan / holiday
 
-	// Shift snapshot
-	ShiftStart   *time.Time `gorm:"column:shift_start"` // TIME
-	ShiftEnd     *time.Time `gorm:"column:shift_end"`   // TIME
-	BreakMinutes int        `gorm:"column:break_minutes;default:0"`
+	// Shift snapshot (store only time-of-day as string, e.g. "08:00:00")
+	ShiftStart   *string `gorm:"column:shift_start"`
+	ShiftEnd     *string `gorm:"column:shift_end"`
+	BreakMinutes int     `gorm:"column:break_minutes;default:0"`
 
 	// Time result
 	FirstIn *time.Time `gorm:"column:first_in"` // TIMESTAMP NULL

@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"hr-program/internal/attendance-service/model"
 	"sort"
 	"time"
@@ -131,25 +132,9 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 		// shift = mockup shift 8:00-17:00
 		shift := s.getMockShift(key.UserID, key.WorkDate)
 
-		shiftStart := time.Date(
-			key.WorkDate.Year(),
-			key.WorkDate.Month(),
-			key.WorkDate.Day(),
-			shift.StartHour,
-			shift.StartMinute,
-			0, 0,
-			key.WorkDate.Location(),
-		)
-
-		shiftEnd := time.Date(
-			key.WorkDate.Year(),
-			key.WorkDate.Month(),
-			key.WorkDate.Day(),
-			shift.EndHour,
-			shift.EndMinute,
-			0, 0,
-			key.WorkDate.Location(),
-		)
+		// เก็บเฉพาะเวลาเป็น string เช่น "08:00:00" เตรียมข้อมูลเป็น string postgres แปลง string -> time.Time ให้เอง
+		shiftStart := fmt.Sprintf("%02d:%02d:00", shift.StartHour, shift.StartMinute)
+		shiftEnd := fmt.Sprintf("%02d:%02d:00", shift.EndHour, shift.EndMinute)
 
 		daily.ShiftStart = &shiftStart
 		daily.ShiftEnd = &shiftEnd
@@ -159,6 +144,11 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 		// 🔹 เรียก calculate หลังจากมีข้อมูลครบ
 		// =========================
 		if err := s.calculateWorkMinutes(&daily); err != nil {
+			return nil, err
+		}
+
+		// เรียกใช้ฟังก์ชันตรวจสอบการแสกนซ้ำ (duplicate scan) โดยดูจาก EditedScansJSON
+		if err := s.checkDuplicateScans(&daily); err != nil {
 			return nil, err
 		}
 
@@ -180,13 +170,24 @@ func fxToType(fx int) string {
 	case 2:
 		return "out"
 	default:
-		return "in" // หรือค่า default อื่น
+		return "unknown" // หรือค่า default อื่น
 	}
 }
 
+// func คำนวณเวลาทำงาน และเวลาสาย กลับก่อน จาก EditedScansJSON
 func (s *AttendanceService) calculateWorkMinutes(daily *model.AttendanceDaily) error {
 	if daily.ShiftStart == nil || daily.ShiftEnd == nil {
 		return nil // ไม่มีข้อมูลกะงาน ไม่สามารถคำนวณได้
+	}
+
+	// แปลง string เวลา (HH:MM:SS) ให้เป็น time.Time ตามวันที่ของ WorkDate
+	shiftStartTime, err := buildShiftDateTime(daily.WorkDate, *daily.ShiftStart)
+	if err != nil {
+		return err
+	}
+	shiftEndTime, err := buildShiftDateTime(daily.WorkDate, *daily.ShiftEnd)
+	if err != nil {
+		return err
 	}
 
 	var scans []model.EditableScan
@@ -202,9 +203,6 @@ func (s *AttendanceService) calculateWorkMinutes(daily *model.AttendanceDaily) e
 	sort.Slice(scans, func(i, j int) bool {
 		return scans[i].ScanTime.Before(scans[j].ScanTime)
 	})
-
-	shiftStart := daily.ShiftStart
-	shiftEnd := daily.ShiftEnd
 
 	// 1. คำนวณ Total Work Minutes
 	totalMinutes := 0
@@ -239,15 +237,16 @@ func (s *AttendanceService) calculateWorkMinutes(daily *model.AttendanceDaily) e
 	}
 
 	daily.TotalWorkMinutes = totalMinutes
+	daily.NormalWorkMinutes = totalMinutes
 
 	// 2. คำนวณ Late Minutes มาสาย
 	first := scans[0]
 	late := 0
 	graceMinutes := 1 // กำหนดเวลายืดหยุ่น 1 นาที
 
-	if first.Type == "in" && first.ScanTime.After(*shiftStart) {
+	if first.Type == "in" && first.ScanTime.After(*shiftStartTime) {
 
-		diff := int(first.ScanTime.Sub(*shiftStart).Minutes())
+		diff := int(first.ScanTime.Sub(*shiftStartTime).Minutes())
 
 		if diff > graceMinutes {
 			late = diff
@@ -261,13 +260,78 @@ func (s *AttendanceService) calculateWorkMinutes(daily *model.AttendanceDaily) e
 	// 3. คำนวณ Early Leave Minutes กลับก่อน
 	last := scans[len(scans)-1]
 	early := 0
-	if last.Type == "out" && last.ScanTime.Before(*shiftEnd) {
-		early = int(shiftEnd.Sub(last.ScanTime).Minutes())
+	if last.Type == "out" && last.ScanTime.Before(*shiftEndTime) {
+		early = int(shiftEndTime.Sub(last.ScanTime).Minutes())
 	}
 
 	daily.EarlyLeaveMinutes = early
 
 	return nil
+}
+
+// func ตรวจสอบการแสกนซ้ำ (duplicate scan) โดยดูจาก EditedScansJSON
+// ถ้าเจอสแกนที่มีเวลาเดียวกันและประเภทเดียวกัน (in/out) เกิน 1 ครั้ง ให้ถือว่าเป็น duplicate scan
+func (s *AttendanceService) checkDuplicateScans(daily *model.AttendanceDaily) error {
+
+	var scans []model.EditableScan
+	// แปลง EditedScansJSON เป็น []EditableScan และนำค่าไปใส่ในตัวแปร scans
+	if err := json.Unmarshal(daily.EditedScansJSON, &scans); err != nil {
+		return err
+	}
+
+	if len(scans) == 0 {
+		return nil // ไม่มีสแกน ไม่สามารถตรวจสอบได้
+	}
+
+	if len(scans)%2 != 0 {
+		daily.MissingScan = true // ถ้าจำนวนสแกนเป็นเลขคี่ แสดงว่าขาดคู่ in/out ลืม scan Missing scan = true
+	}
+
+	// ตรวจสอบการแสกรซ้ำโดยใช้ เช็ค type ถ้าเจอ type เดียวกัน ต่อกันเกิน 1 ครั้ง ถือว่าเป็น duplicate scan
+	var prevType string
+	for _, scan := range scans {
+		if scan.Action == "deleted" {
+			continue // ข้ามสแกนที่ถูกลบ
+		}
+		// type ก่อนหน้า เปรียบเทียบกับ type ปัจจุบัน
+		if prevType == scan.Type {
+			diff := scan.ScanTime.Sub(scan.ScanTime)
+			if diff > 0 && diff <= time.Minute {
+				// ภายใน 1 นาที ถ้าเจอ type เดียวกันซ้ำกัน ให้ถือว่าเป็น duplicate scan
+				scan.Action = "deleted" // update action เป็น deleted เพื่อให้ไม่ถูกนับในการคำนวณเวลาทำงาน
+				daily.DuplicateScans++  // ถ้าเหมือนกัน duplicate scan เพิ่มขึ้น 1
+			}
+		}
+		prevType = scan.Type
+	}
+
+	// updated EditedScansJSON หลังจากตรวจสอบ duplicate scan แล้ว
+	update, err := json.Marshal(scans)
+	if err != nil {
+		return err
+	}
+	daily.EditedScansJSON = update
+
+	return nil
+}
+
+// buildShiftDateTime แปลงเวลาแบบ HH:MM:SS ให้เป็น time.Time โดยใช้วันที่จาก workDate
+func buildShiftDateTime(workDate time.Time, t string) (*time.Time, error) {
+	parsed, err := time.Parse("15:04:05", t)
+	if err != nil {
+		return nil, err
+	}
+	shift := time.Date(
+		workDate.Year(),
+		workDate.Month(),
+		workDate.Day(),
+		parsed.Hour(),
+		parsed.Minute(),
+		parsed.Second(),
+		0,
+		workDate.Location(),
+	)
+	return &shift, nil
 }
 
 // ------------Mockup shift---------------
