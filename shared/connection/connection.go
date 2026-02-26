@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -93,7 +94,7 @@ func ConnectEcons() *gorm.DB {
 
 	config.LoadConfig()
 
-	db, err := gorm.Open(mysql.Open(config.AppConfig.ECONS_SQLSERVER_DSN), &gorm.Config{
+	db, err := gorm.Open(sqlserver.Open(config.AppConfig.ECONS_SQLSERVER_DSN), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {

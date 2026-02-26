@@ -3,6 +3,7 @@ package service
 import (
 	"log"
 	"sync"
+	"time"
 
 	"hr-program/internal/request-service/model"
 )
@@ -54,36 +55,55 @@ func (s *RequestService) syncRange(startID, endID int64) {
 			break
 		}
 
-		var insertData []model.OT
+		var insertData []model.OTlogs
 
 		for _, r := range records {
-			insertData = append(insertData, model.OT{
-				ID:              r.ID,
-				OTDocumentID:    r.Sequence,
-				TYPE_OT:         r.TypeOT,
-				OTRequesterName: r.RequestAP,
-				ChieftainName:   r.ChiefAP,
-				ManagerName:     r.ManagerAP,
-				HRApproveName:   r.HRAP,
-				HRCheckStatus:   r.HRCheck,
-				ApproveStatus:   r.Approve,
-				CreatedAt:       r.CreateDate,
-			}),
-			insertData = append(insertData, model.OTDetail{
+			// Normalize date/time strings from ECONS to match Postgres column types
+			dateStr := r.Date
+			if t, err := time.Parse(time.RFC3339, r.Date); err == nil {
+				dateStr = t.Format("2006-01-02")
+			}
+
+			startStr := r.StartOT
+			if t, err := time.Parse(time.RFC3339, r.StartOT); err == nil {
+				startStr = t.Format("15:04:05")
+			}
+
+			stopStr := r.StopOT
+			if t, err := time.Parse(time.RFC3339, r.StopOT); err == nil {
+				stopStr = t.Format("15:04:05")
+			}
+
+			insertData = append(insertData, model.OTlogs{
 				ID:           r.ID,
-				OTDocumentID: r.Sequence,
-				TYPE_OT:      r.TypeOT,
-				DepartmentID: r.Dep, // ต้องแก้ไข ยต้องนำไป map id ก่อน
-				ShiftID:      r.ShiftOT, // ต้องแก้ไข ยต้องนำไป map id ก่อน
-				EmployeeID:   r.EmployeeCode, // ต้องแก้ไข ยต้องนำไป map id ก่อน
-				OTDate:       r.Date,
-				OTStart:      r.StartOT,
-				OTEnd:        r.StopOT,
-				CreatedAt:    r.CreateDate,
+				HRCheck:      r.HRCheck,
+				Sequence:     r.Sequence,
+				Department:   r.Department,
+				Dep:          r.Dep,
+				ShiftOT:      r.ShiftOT,
+				TypeOT:       r.TypeOT,
+				Date:         dateStr,
+				AB:           r.AB,
+				EmployeeCode: r.EmployeeCode,
+				StartOT:      startStr,
+				StopOT:       stopStr,
+				WorkOT:       r.WorkOT,
+				Approve:      r.Approve,
+				RequestAP:    r.RequestAP,
+				RequestTap:   r.RequestTap,
+				ChiefAP:      r.ChiefAP,
+				ChiefTap:     r.ChiefTap,
+				ManagerAP:    r.ManagerAP,
+				ManagerTap:   r.ManagerTap,
+				HRAP:         r.HRAP,
+				HRTap:        r.HRTap,
+				DeleteName:   r.DeleteName,
+				Deletetime:   r.Deletetime,
+				CreateDate:   r.CreateDate,
 			})
 		}
 
-		err := s.AppRepo.BulkInsert(insertData)
+		err = s.AppRepo.BulkInsert(insertData)
 		if err != nil {
 			log.Println("Batch upsert OT error:", err)
 			return

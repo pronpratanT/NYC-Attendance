@@ -4,6 +4,7 @@ import (
 	"hr-program/internal/attendance-service/app/router"
 	"hr-program/internal/attendance-service/handler"
 	attrepo "hr-program/internal/attendance-service/repository"
+	reqrepo "hr-program/internal/request-service/repository"
 	deprepo "hr-program/internal/user-service/repository/departments"
 	usrrepo "hr-program/internal/user-service/repository/users"
 
@@ -11,6 +12,7 @@ import (
 	db "hr-program/shared/connection"
 
 	attservice "hr-program/internal/attendance-service/service"
+	reqservice "hr-program/internal/request-service/service"
 	usrservice "hr-program/internal/user-service/service"
 	"log"
 	"time"
@@ -24,6 +26,7 @@ func main() {
 	// Connect DBs
 	appDB := db.ConnectDB()
 	cloudDB := db.ConnectCloudtime()
+	econsDB := db.ConnectEcons()
 
 	// Init repositories for attendance service
 	attAppRepo := attrepo.NewAttendanceRepository(appDB)
@@ -34,11 +37,15 @@ func main() {
 	// Init repositories for user service - departments
 	depAppRepo := deprepo.NewDepartmentsRepository(appDB)
 	depCloudRepo := deprepo.NewCloudtimeDepartmentsRepository(cloudDB)
+	// Init repositories for request service - OT
+	otAppRepo := reqrepo.NewOTRepository(appDB)
+	econsRepo := reqrepo.NewEconsRepository(econsDB)
 
 	// Init services
 	attendanceService := attservice.NewAttendanceService(attCloudRepo, attAppRepo, usrAppRepo)
 	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo)
 	departmentService := usrservice.NewDepartmentsService(depCloudRepo, depAppRepo)
+	requestService := reqservice.NewRequestService(otAppRepo, econsRepo, usrAppRepo)
 
 	// handler + router
 	attendanceHandler := handler.NewAttendanceHandler(attendanceService)
@@ -58,6 +65,12 @@ func main() {
 		if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
 			log.Println("Initial process attendance daily failed:", err)
 		}
+		if err := requestService.SyncFullLoad(); err != nil {
+			log.Println("Initial sync OT requests failed:", err)
+		}
+		if err := requestService.GenerateAndSaveOT(); err != nil {
+			log.Println("Initial process OT logs to OT docs failed:", err)
+		}
 		log.Println("Initial sync completed successfully")
 	}()
 
@@ -72,6 +85,14 @@ func main() {
 			}
 			if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
 				log.Println("Scheduled process attendance daily failed:", err)
+				continue
+			}
+			if err := requestService.SyncFullLoad(); err != nil {
+				log.Println("Scheduled sync OT requests failed:", err)
+				continue
+			}
+			if err := requestService.GenerateAndSaveOT(); err != nil {
+				log.Println("Scheduled process OT logs to OT docs failed:", err)
 				continue
 			}
 			log.Println("Scheduled sync + attendance daily completed")

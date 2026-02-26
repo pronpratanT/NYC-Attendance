@@ -37,6 +37,12 @@ services:
       DB_PASSWORD: 1234
       DB_NAME: hr_db
       CLOUDTIME_DSN: ${CLOUDTIME_DSN}
+
+      SQLSERVER_USER: sa
+      SQLSERVER_PASSWORD: nycerp
+      SQLSERVER_HOST: erp-server
+      SQLSERVER_PORT: 1433
+      SQLSERVER_DB: dbNYC
     ports:
       - "8080:8080"
 

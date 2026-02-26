@@ -3,13 +3,15 @@ package service
 import "hr-program/internal/request-service/repository"
 
 type RequestService struct {
-	OTRepo    *repository.OTRepository
+	AppRepo   *repository.OTRepository
 	EconsRepo *repository.EconsRepository
+	UserRepo  repository.UserRepositoryInterface
 }
 
-func NewRequestService(otRepo *repository.OTRepository, econsRepo *repository.EconsRepository) *RequestService {
+func NewRequestService(appRepo *repository.OTRepository, econsRepo *repository.EconsRepository, userRepo repository.UserRepositoryInterface) *RequestService {
 	return &RequestService{
-		OTRepo:    otRepo,
+		AppRepo:   appRepo,
 		EconsRepo: econsRepo,
+		UserRepo:  userRepo,
 	}
 }
