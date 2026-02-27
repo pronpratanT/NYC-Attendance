@@ -13,6 +13,7 @@ func AttendanceRouter(h *handler.AttendanceHandler) *gin.Engine {
 	{
 		api.GET("/attendance-logs", h.GetAttendanceLogs)
 		api.GET("/attendance-daily", h.GetAttendanceDaily)
+		api.GET("/attendance-daily/:employee_id", h.GetAttendanceDailyByEmployeeID)
 	}
 
 	return r

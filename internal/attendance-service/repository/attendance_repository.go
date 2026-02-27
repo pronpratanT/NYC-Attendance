@@ -45,3 +45,16 @@ func (r *AttendanceRepository) GetAttendanceDaily() ([]model.AttendanceDaily, er
 	}
 	return attendance, nil
 }
+
+func (r *AttendanceRepository) GetAttendanceDailyByEmployeeID(employeeID int64) ([]model.AttendanceDaily, error) {
+	var attendance []model.AttendanceDaily
+	if err := r.DB.
+		Model(&model.AttendanceDaily{}).
+		Where("user_id = ?", employeeID).
+		Order("work_date ASC").
+		Find(&attendance).Error; err != nil {
+		log.Println("Failed to get attendance daily:", err)
+		return nil, err
+	}
+	return attendance, nil
+}

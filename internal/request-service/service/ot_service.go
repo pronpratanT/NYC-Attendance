@@ -145,14 +145,16 @@ func (s *RequestService) OTLogsProcessing() ([]model.OTDoc, []model.OTDetail, er
 		}
 
 		detail := model.OTDetail{
-			OTDocID:     0, // จะถูกเติมภายหลัง หลังจากบันทึก OTDoc แล้ว map จาก Sequence -> ID
-			EmployeeID:  userID,
-			TypeOT:      r.TypeOT,
-			StartOT:     startTime,
-			StopOT:      stopTime,
-			WorkOT:      r.WorkOT,
-			SourceLogID: r.ID,
-			Sequence:    r.Sequence,
+			OTDocID:      0, // จะถูกเติมภายหลัง หลังจากบันทึก OTDoc แล้ว map จาก Sequence -> ID
+			EmployeeID:   userID,
+			EmployeeCode: r.EmployeeCode,
+			Date:         parsedDate,
+			TypeOT:       r.TypeOT,
+			StartOT:      startTime,
+			StopOT:       stopTime,
+			WorkOT:       r.WorkOT,
+			SourceLogID:  r.ID,
+			Sequence:     r.Sequence,
 		}
 		details = append(details, detail)
 	}

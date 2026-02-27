@@ -23,3 +23,25 @@ func (r *DepartmentsRepository) BulkInsert(data []model.Departments) error {
 		}).
 		CreateInBatches(data, len(data)).Error
 }
+
+// GetDepartmentsIDMap คืนค่า map จาก dep_no (string) ไปเป็น department id (int64)
+// ใช้สำหรับ map รหัสแผนกจาก Cloudtime เข้ากับตาราง departments ในแอป
+func (r *DepartmentsRepository) GetDepartmentsIDMap(depNos []string) (map[string]int64, error) {
+	var departments []model.Departments
+
+	err := r.DB.
+		Select("id", "dep_no").
+		Where("dep_no IN ?", depNos).
+		Find(&departments).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]int64, len(departments))
+	for _, d := range departments {
+		result[d.DepNo] = d.ID
+	}
+
+	return result, nil
+}

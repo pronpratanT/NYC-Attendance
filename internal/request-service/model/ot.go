@@ -29,8 +29,9 @@ type OTDetail struct {
 	ID           uint      `gorm:"column:id;primaryKey;autoIncrement"`
 	OTDocID      uint      `gorm:"column:ot_doc_id;index;not null"` // FK → ot_doc.id
 	EmployeeID   int64     `gorm:"column:employee_id;index"`        // user_id ในระบบ (เดิมได้มาจาก employee_code)
-	EmployeeName string    `gorm:"column:employee_name;size:100"`
+	EmployeeCode string    `gorm:"column:employee_code;size:100"`
 	TypeOT       string    `gorm:"column:type_ot;size:20"`
+	Date         time.Time `gorm:"column:date;type:date;not null"`
 	StartOT      time.Time `gorm:"column:start_ot;type:time"`
 	StopOT       time.Time `gorm:"column:stop_ot;type:time"`
 	WorkOT       string    `gorm:"column:work_ot;size:255"` // งาน OT โดยรวม
