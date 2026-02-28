@@ -41,3 +41,13 @@ func (r *EconsRepository) GetBatchOTByDocumentIDRange(
 
 	return records, err
 }
+
+func (r *EconsRepository) GetAllHolidays() ([]model.HolidayEcons, error) {
+	var records []model.HolidayEcons
+
+	err := r.DB.
+		Order("date ASC").
+		Find(&records).Error
+
+	return records, err
+}

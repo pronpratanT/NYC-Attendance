@@ -33,3 +33,14 @@ type OTEcons struct {
 func (OTEcons) TableName() string {
 	return "dbo.HR_OT"
 }
+
+type HolidayEcons struct {
+	ID     int64     `gorm:"column:id;primaryKey;autoIncrement"`
+	Date   time.Time `gorm:"column:date;type:date;not null;uniqueIndex"`
+	Remark string    `gorm:"column:remark;size:255;"`
+	Sunday string    `gorm:"column:sunday;size:10;"` // ใช่/ไม่ใช่
+}
+
+func (HolidayEcons) TableName() string {
+	return "dbo.HR_HOLIDAY"
+}

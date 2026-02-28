@@ -54,6 +54,49 @@ func (h *AttendanceHandler) GetAttendanceDailyByEmployeeID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data": daily,
+		"data":  daily,
+		"total": len(daily),
+	})
+}
+
+func (h *AttendanceHandler) GetAttendanceDailyByEmployeeIDAndDate(c *gin.Context) {
+	employeeID, err := strconv.ParseInt(c.Param("employee_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid employee ID",
+		})
+		return
+	}
+	startDate := c.Param("start_date")
+	endDate := c.Param("end_date")
+
+	daily, err := h.Service.AppRepo.GetAttendanceDailyByEmployeeIDAndDateRange(employeeID, startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to retrieve attendance daily",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  daily,
+		"total": len(daily),
+	})
+}
+
+func (h *AttendanceHandler) GetAttendanceDailyByDate(c *gin.Context) {
+	startDate := c.Param("start_date")
+	endDate := c.Param("end_date")
+	daily, err := h.Service.AppRepo.GetAttendanceDailyByDate(startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to retrieve attendance daily",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  daily,
+		"total": len(daily),
 	})
 }

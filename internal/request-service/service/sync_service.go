@@ -112,3 +112,21 @@ func (s *RequestService) syncRange(startID, endID int64) {
 		lastID = records[len(records)-1].ID
 	}
 }
+
+func (s *RequestService) SyncHolidays() error {
+	records, err := s.EconsRepo.GetAllHolidays()
+	if err != nil {
+		return err
+	}
+
+	var insertData []model.Holiday
+	for _, r := range records {
+		insertData = append(insertData, model.Holiday{
+			ID:     r.ID,
+			Date:   r.Date,
+			Remark: r.Remark,
+			Sunday: r.Sunday,
+		})
+	}
+	return s.HolidayRepo.BulkInsertHolidays(insertData)
+}

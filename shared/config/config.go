@@ -12,6 +12,7 @@ type Config struct {
 	AppPort             string
 	AppDSN              string
 	ECONS_SQLSERVER_DSN string
+	SQLExpressDSN       string
 	CloudtimeDSN        string
 }
 
@@ -52,6 +53,28 @@ func LoadConfig() {
 		sqlDB,
 	)
 
+	// SQL EXPRESS (SQLEXPRESS_*) DSN (ถ้าใช้ B PLUS หรือ DB อื่นแยกจาก ECONS)
+	// sqxHost := os.Getenv("SQLEXPRESS_HOST")
+	// var sqlExpressDSN string
+	// if sqxHost != "" {
+	// 	sqxUser := mustEnv("SQLEXPRESS_USER")
+	// 	sqxPass := mustEnv("SQLEXPRESS_PASSWORD")
+	// 	sqxPort := mustEnv("SQLEXPRESS_PORT")
+	// 	sqxDB := mustEnv("SQLEXPRESS_DB")
+	// 	sqxInstance := os.Getenv("SQLEXPRESS_INSTANCE")
+
+	// 	sqlExpressDSN = fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=%s",
+	// 		sqxUser,
+	// 		sqxPass,
+	// 		sqxHost,
+	// 		sqxPort,
+	// 		sqxDB,
+	// 	)
+	// 	if sqxInstance != "" {
+	// 		sqlExpressDSN = fmt.Sprintf("%s&instance=%s", sqlExpressDSN, sqxInstance)
+	// 	}
+	// }
+
 	// Cloudtime DSN
 	cloudtimeDSN := mustEnv("CLOUDTIME_DSN")
 
@@ -59,7 +82,8 @@ func LoadConfig() {
 		AppPort:             getEnv("PORT", "8080"),
 		AppDSN:              appDSN,
 		ECONS_SQLSERVER_DSN: ECONS_SQLSERVER_DSN,
-		CloudtimeDSN:        cloudtimeDSN,
+		// SQLExpressDSN:       sqlExpressDSN,
+		CloudtimeDSN: cloudtimeDSN,
 	}
 }
 

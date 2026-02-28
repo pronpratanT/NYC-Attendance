@@ -39,13 +39,14 @@ func main() {
 	depCloudRepo := deprepo.NewCloudtimeDepartmentsRepository(cloudDB)
 	// Init repositories for request service - OT
 	otAppRepo := reqrepo.NewOTRepository(appDB)
+	holidayRepo := reqrepo.NewHolidayRepository(appDB)
 	econsRepo := reqrepo.NewEconsRepository(econsDB)
 
 	// Init services
 	attendanceService := attservice.NewAttendanceService(attCloudRepo, attAppRepo, usrAppRepo)
-	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo)
+	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo, depAppRepo)
 	departmentService := usrservice.NewDepartmentsService(depCloudRepo, depAppRepo)
-	requestService := reqservice.NewRequestService(otAppRepo, econsRepo, usrAppRepo)
+	requestService := reqservice.NewRequestService(otAppRepo, econsRepo, usrAppRepo, holidayRepo)
 
 	// handler + router
 	attendanceHandler := handler.NewAttendanceHandler(attendanceService)
@@ -71,6 +72,9 @@ func main() {
 		if err := requestService.GenerateAndSaveOT(); err != nil {
 			log.Println("Initial process OT logs to OT docs failed:", err)
 		}
+		if err := requestService.SyncHolidays(); err != nil {
+			log.Println("Initial sync holidays failed:", err)
+		}
 		log.Println("Initial sync completed successfully")
 	}()
 
@@ -95,6 +99,10 @@ func main() {
 				log.Println("Scheduled process OT logs to OT docs failed:", err)
 				continue
 			}
+			// if err := requestService.SyncHolidays(); err != nil {
+			// 	log.Println("Scheduled sync holidays failed:", err)
+			// 	continue
+			// }
 			log.Println("Scheduled sync + attendance daily completed")
 		}
 	}()

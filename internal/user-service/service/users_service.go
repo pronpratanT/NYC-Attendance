@@ -61,22 +61,6 @@ func (s *UserService) syncRange(startID, endID int64) {
 			break
 		}
 
-		depSet := make(map[string]struct{})
-		for _, r := range cloudRecords {
-			depSet[r.UserDep] = struct{}{}
-		}
-
-		depIDs := make([]string, 0, len(depSet))
-		for dep := range depSet {
-			depIDs = append(depIDs, dep)
-		}
-
-		depMap, err := s.DepRepo.GetDepartmentsIDMap(depIDs)
-		if err != nil {
-			log.Println("Fetch department map error:", err)
-			return
-		}
-
 		var insertData []model.Users
 
 		for _, r := range cloudRecords {
@@ -86,7 +70,7 @@ func (s *UserService) syncRange(startID, endID int64) {
 			insertData = append(insertData, model.Users{
 				EmployeeID:   r.UserNo,
 				Password:     r.UserNo,
-				DepartmentID: depMap[r.UserDep],
+				DepartmentID: r.UserDep,
 				FName:        fn,
 				LName:        ln,
 				IsActive:     true,

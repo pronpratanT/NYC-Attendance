@@ -18,19 +18,20 @@ func (Shifts) TableName() string {
 	return "shifts"
 }
 
-type UserShiftAssignments struct {
-	ID        int64      `json:"id" gorm:"primaryKey;column:id"`
-	UserID    int64      `json:"user_id" gorm:"column:user_id;not null"`
-	ShiftID   int64      `json:"shift_id" gorm:"column:shift_id;not null"`
-	StartDate time.Time  `json:"start_date" gorm:"column:start_date;type:date;not null"`
-	EndDate   time.Time  `json:"end_date" gorm:"column:end_date;type:date;not null"`
-	CreatedAt time.Time  `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt time.Time  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt *time.Time `json:"deleted_at" gorm:"column:deleted_at"`
+type UserShift struct {
+	ID         int64      `json:"id" gorm:"primaryKey;column:id"`
+	UserID     int64      `json:"user_id" gorm:"column:user_id;not null"`
+	ShiftID    int64      `json:"shift_id" gorm:"column:shift_id;not null"`
+	StartDate  time.Time  `json:"start_date" gorm:"column:start_date;type:date;not null"`
+	EndDate    time.Time  `json:"end_date" gorm:"column:end_date;type:date;not null"`
+	LivingCost int        `json:"living_cost" gorm:"column:living_cost;default:0"`
+	CreatedAt  time.Time  `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt  time.Time  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt  *time.Time `json:"deleted_at" gorm:"column:deleted_at"`
 }
 
-func (UserShiftAssignments) TableName() string {
-	return "user_shift_assignments"
+func (UserShift) TableName() string {
+	return "user_shift"
 }
 
 type UserShiftOverrides struct {
