@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"hr-program/internal/attendance-service/model"
+	model "hr-program/shared/models/attendance"
 
 	"gorm.io/gorm"
 )

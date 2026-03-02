@@ -3,10 +3,90 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"hr-program/internal/attendance-service/model"
+	model "hr-program/shared/models/attendance"
+	"log"
 	"sort"
+	"sync"
 	"time"
 )
+
+// ดึงและ sync attendance logs จาก Cloudtime -> app DB
+func (s *AttendanceService) SyncFullLoadAttendance() error {
+	minBH, maxBH, err := s.CloudRepo.GetMinMaxBH()
+	if err != nil {
+		return err
+	}
+
+	mid := minBH + (maxBH-minBH)/2
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		// worker 1: [minBH .. mid]
+		s.syncRangeAttendance(minBH, mid)
+	}()
+
+	go func() {
+		defer wg.Done()
+		// worker 2: [mid+1 .. maxBH] ป้องกันซ้ำกับ mid ของ worker แรก
+		if mid+1 <= maxBH {
+			s.syncRangeAttendance(mid+1, maxBH)
+		}
+	}()
+
+	wg.Wait()
+
+	return nil
+}
+
+func (s *AttendanceService) syncRangeAttendance(startBH, endBH int64) {
+	batchSize := 3000
+	// เริ่มจาก startBH-1 เพื่อให้เงื่อนไข bh > lastBH ครอบคลุม record แรกสุด (bh == startBH)
+	lastBH := startBH - 1
+
+	for {
+		cloudRecords, err := s.CloudRepo.GetBatchByBHRange(lastBH, endBH, batchSize)
+		if err != nil {
+			log.Println("Fetch attendance error:", err)
+			return
+		}
+
+		if len(cloudRecords) == 0 {
+			break
+		}
+
+		var insertData []model.Attendance
+		for _, r := range cloudRecords {
+			insertData = append(insertData, model.Attendance{
+				BH:           r.BH,
+				UserSerial:   r.UserSerial,
+				UserNo:       r.UserNo,
+				UserLName:    r.UserLName,
+				DepNo:        r.DepNo,
+				UserDep:      r.UserDep,
+				UserDepName:  r.UserDepName,
+				UserType:     r.UserType,
+				UserCard:     r.UserCard,
+				SJ:           r.SJ,
+				Iden:         r.Iden,
+				FX:           r.FX,
+				JlzpSerial:   r.JlzpSerial,
+				DevSerial:    r.DevSerial,
+				MC:           r.MC,
+				HealthStatus: r.HealthStatus,
+			})
+		}
+
+		if err := s.AppRepo.BulkInsert(insertData); err != nil {
+			log.Println("Insert attendance error:", err)
+			return
+		}
+
+		lastBH = cloudRecords[len(cloudRecords)-1].BH
+	}
+}
 
 // ดึง attendance logs จาก app DB ผ่าน repository
 func (s *AttendanceService) GetAttendanceLogs() ([]model.Attendance, error) {

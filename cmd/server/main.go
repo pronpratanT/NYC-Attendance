@@ -54,7 +54,7 @@ func main() {
 
 	// Initial sync เบื้องหลังครั้งแรกตอน start service
 	go func() {
-		if err := attendanceService.SyncFullLoad(); err != nil {
+		if err := attendanceService.SyncFullLoadAttendance(); err != nil {
 			log.Println("Initial sync attendance failed:", err)
 		}
 		if err := userService.SyncFullLoad(); err != nil {
@@ -66,7 +66,7 @@ func main() {
 		if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
 			log.Println("Initial process attendance daily failed:", err)
 		}
-		if err := requestService.SyncFullLoad(); err != nil {
+		if err := requestService.SyncFullLoadOT(); err != nil {
 			log.Println("Initial sync OT requests failed:", err)
 		}
 		if err := requestService.GenerateAndSaveOT(); err != nil {
@@ -83,7 +83,7 @@ func main() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
-			if err := attendanceService.SyncFullLoad(); err != nil {
+			if err := attendanceService.SyncFullLoadAttendance(); err != nil {
 				log.Println("Scheduled sync attendance failed:", err)
 				continue
 			}
@@ -91,7 +91,7 @@ func main() {
 				log.Println("Scheduled process attendance daily failed:", err)
 				continue
 			}
-			if err := requestService.SyncFullLoad(); err != nil {
+			if err := requestService.SyncFullLoadOT(); err != nil {
 				log.Println("Scheduled sync OT requests failed:", err)
 				continue
 			}
@@ -99,7 +99,7 @@ func main() {
 				log.Println("Scheduled process OT logs to OT docs failed:", err)
 				continue
 			}
-			// if err := requestService.SyncHolidays(); err != nil {
+			// if err := syncService.SyncHolidays(); err != nil {
 			// 	log.Println("Scheduled sync holidays failed:", err)
 			// 	continue
 			// }

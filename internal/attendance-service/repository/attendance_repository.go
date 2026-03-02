@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"hr-program/internal/attendance-service/model"
+	model "hr-program/shared/models/attendance"
 	"log"
 
 	"gorm.io/gorm"
@@ -17,12 +17,15 @@ func NewAttendanceRepository(db *gorm.DB) *AttendanceRepository {
 }
 
 func (r *AttendanceRepository) BulkInsert(data []model.Attendance) error {
+	// Use a safe batch size to avoid Postgres 65535-parameter limit
+	const batchSize = 500
+
 	return r.DB.
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "bh"}}, // ใช้ bh เป็น unique key
 			DoNothing: true,                          // ถ้า bh ซ้ำ ให้ข้าม record นั้น
 		}).
-		CreateInBatches(data, len(data)).Error
+		CreateInBatches(data, batchSize).Error
 }
 
 func (r *AttendanceRepository) SaveAttendanceDaily(data []model.AttendanceDaily) error {
@@ -83,6 +86,51 @@ func (r *AttendanceRepository) GetAttendanceDailyByDate(startDate, endDate strin
 		Find(&attendance).Error; err != nil {
 		log.Println("Failed to get attendance daily:", err)
 		return nil, err
+	}
+	return attendance, nil
+}
+
+func (r *AttendanceRepository) GetAttendanceLogs() ([]model.Attendance, error) {
+	sqlDB, err := r.DB.DB()
+	if err != nil {
+		log.Println("Failed to get raw DB connection:", err)
+		return nil, err
+	}
+	rows, err := sqlDB.Query("SELECT id, bh, user_serial, user_no, user_lname, dep_no, user_dep, user_depname, user_type, user_card, sj, iden, fx, jlzp_serial, dev_serial, mc, health_status, created_at FROM attendance_logs ORDER BY bh DESC")
+	if err != nil {
+		log.Println("Failed to execute query:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var attendance []model.Attendance
+	for rows.Next() {
+		var att model.Attendance
+		err := rows.Scan(
+			&att.ID,
+			&att.BH,
+			&att.UserSerial,
+			&att.UserNo,
+			&att.UserLName,
+			&att.DepNo,
+			&att.UserDep,
+			&att.UserDepName,
+			&att.UserType,
+			&att.UserCard,
+			&att.SJ,
+			&att.Iden,
+			&att.FX,
+			&att.JlzpSerial,
+			&att.DevSerial,
+			&att.MC,
+			&att.HealthStatus,
+			&att.CreatedAt,
+		)
+		if err != nil {
+			log.Println("Failed to scan row:", err)
+			return nil, err
+		}
+		attendance = append(attendance, att)
 	}
 	return attendance, nil
 }
