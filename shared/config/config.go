@@ -54,26 +54,28 @@ func LoadConfig() {
 	)
 
 	// SQL EXPRESS (SQLEXPRESS_*) DSN (ถ้าใช้ B PLUS หรือ DB อื่นแยกจาก ECONS)
-	// sqxHost := os.Getenv("SQLEXPRESS_HOST")
-	// var sqlExpressDSN string
-	// if sqxHost != "" {
-	// 	sqxUser := mustEnv("SQLEXPRESS_USER")
-	// 	sqxPass := mustEnv("SQLEXPRESS_PASSWORD")
-	// 	sqxPort := mustEnv("SQLEXPRESS_PORT")
-	// 	sqxDB := mustEnv("SQLEXPRESS_DB")
-	// 	sqxInstance := os.Getenv("SQLEXPRESS_INSTANCE")
+	sqxHost := os.Getenv("SQLEXPRESS_HOST")
+	var sqlExpressDSN string
+	if sqxHost != "" {
+		sqxUser := mustEnv("SQLEXPRESS_USER")
+		sqxPass := mustEnv("SQLEXPRESS_PASSWORD")
+		// sqxPort := mustEnv("SQLEXPRESS_PORT")
+		sqxDB := mustEnv("SQLEXPRESS_DB")
+		sqxInstance := os.Getenv("SQLEXPRESS_INSTANCE")
 
-	// 	sqlExpressDSN = fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=%s",
-	// 		sqxUser,
-	// 		sqxPass,
-	// 		sqxHost,
-	// 		sqxPort,
-	// 		sqxDB,
-	// 	)
-	// 	if sqxInstance != "" {
-	// 		sqlExpressDSN = fmt.Sprintf("%s&instance=%s", sqlExpressDSN, sqxInstance)
-	// 	}
-	// }
+		// ใส่ encrypt=disable เพื่อไม่ให้ Go TLS บังคับใช้ TLS1.2 กับ SQL Express เก่าที่รองรับแค่ TLS เก่า
+		// รูปแบบ: sqlserver://user:pass@host:port?database=DB&encrypt=disable[&instance=SQLEXPRESS]
+		sqlExpressDSN = fmt.Sprintf("sqlserver://%s:%s@%s/%s?database=%s&encrypt=disable",
+			sqxUser,
+			sqxPass,
+			sqxHost,
+			sqxInstance,
+			sqxDB,
+		)
+		if sqxInstance != "" {
+			sqlExpressDSN = fmt.Sprintf("%s&instance=%s", sqlExpressDSN, sqxInstance)
+		}
+	}
 
 	// Cloudtime DSN
 	cloudtimeDSN := mustEnv("CLOUDTIME_DSN")
@@ -82,8 +84,8 @@ func LoadConfig() {
 		AppPort:             getEnv("PORT", "8080"),
 		AppDSN:              appDSN,
 		ECONS_SQLSERVER_DSN: ECONS_SQLSERVER_DSN,
-		// SQLExpressDSN:       sqlExpressDSN,
-		CloudtimeDSN: cloudtimeDSN,
+		SQLExpressDSN:       sqlExpressDSN,
+		CloudtimeDSN:        cloudtimeDSN,
 	}
 }
 

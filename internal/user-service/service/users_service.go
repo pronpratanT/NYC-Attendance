@@ -1,9 +1,9 @@
 package service
 
 import (
-	model "hr-program/internal/user-service/model/users"
 	deprepository "hr-program/internal/user-service/repository/departments"
 	repository "hr-program/internal/user-service/repository/users"
+	model "hr-program/shared/models/users"
 	"log"
 	"strings"
 	"sync"

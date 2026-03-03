@@ -15,6 +15,9 @@ func AutoMigrate() error {
 
 	if err := database.AutoMigrate(
 		&usr.Users{},
+		&usr.Shifts{},
+		&usr.UserShifts{},
+		&usr.UserShiftOverrides{},
 		&usr.Departments{},
 		&att.Attendance{},
 		&att.AttendanceDaily{},

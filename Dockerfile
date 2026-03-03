@@ -3,6 +3,9 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
+# เปิดใช้ Go modules ให้แน่ใจว่าใช้ go.mod ไม่ไปหาใน GOPATH/std
+ENV GO111MODULE=on
+
 COPY go.mod go.sum ./
 RUN go mod download
 

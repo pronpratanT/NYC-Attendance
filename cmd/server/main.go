@@ -6,6 +6,7 @@ import (
 	attrepo "hr-program/internal/attendance-service/repository"
 	reqrepo "hr-program/internal/request-service/repository"
 	deprepo "hr-program/internal/user-service/repository/departments"
+	shfrepo "hr-program/internal/user-service/repository/shifts"
 	usrrepo "hr-program/internal/user-service/repository/users"
 
 	"hr-program/shared/config"
@@ -27,6 +28,21 @@ func main() {
 	appDB := db.ConnectDB()
 	cloudDB := db.ConnectCloudtime()
 	econsDB := db.ConnectEcons()
+	sqlExpressDB := db.ConnectSQLExpress()
+
+	// 🔹 ทดสอบว่า SQL Express ใช้งานได้จริง
+	if sqlExpressDB != nil {
+		if err := sqlExpressDB.Exec("SELECT 1").Error; err != nil {
+			log.Fatalf("SQL Express ping failed: %v", err)
+		}
+		log.Println("SQL Express ping OK")
+
+		// Debug columns and data types of TMSHIFT from SQL Express
+		shiftSqlExpressRepo := shfrepo.NewSQLExpressShiftRepository(sqlExpressDB)
+		if err := shiftSqlExpressRepo.DebugDescribeTMSHIFT(); err != nil {
+			log.Printf("DebugDescribeTMSHIFT error: %v", err)
+		}
+	}
 
 	// Init repositories for attendance service
 	attAppRepo := attrepo.NewAttendanceRepository(appDB)
@@ -37,6 +53,10 @@ func main() {
 	// Init repositories for user service - departments
 	depAppRepo := deprepo.NewDepartmentsRepository(appDB)
 	depCloudRepo := deprepo.NewCloudtimeDepartmentsRepository(cloudDB)
+	// Init repositories for user service - shifts
+	// shiftAppRepo := shfrepo.NewShiftsRepository(sqlExpressDB)
+	// shiftSqlExpressRepo := shfrepo.NewSQLExpressShiftRepository(sqlExpressDB)
+
 	// Init repositories for request service - OT
 	otAppRepo := reqrepo.NewOTRepository(appDB)
 	holidayRepo := reqrepo.NewHolidayRepository(appDB)
@@ -47,6 +67,7 @@ func main() {
 	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo, depAppRepo)
 	departmentService := usrservice.NewDepartmentsService(depCloudRepo, depAppRepo)
 	requestService := reqservice.NewRequestService(otAppRepo, econsRepo, usrAppRepo, holidayRepo)
+	// shiftsService := usrservice.NewShiftsService(shiftSqlExpressRepo, shiftAppRepo)
 
 	// handler + router
 	attendanceHandler := handler.NewAttendanceHandler(attendanceService)

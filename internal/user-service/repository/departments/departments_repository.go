@@ -1,7 +1,7 @@
 package repository
 
 import (
-	model "hr-program/internal/user-service/model/departments"
+	model "hr-program/shared/models/users"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

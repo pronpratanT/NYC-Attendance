@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	CloudtimeDB *gorm.DB
-	AppDB       *gorm.DB
-	EconsDB     *gorm.DB
+	CloudtimeDB  *gorm.DB
+	AppDB        *gorm.DB
+	EconsDB      *gorm.DB
+	SqlExpressDB *gorm.DB
 )
 
 func ConnectDB() *gorm.DB {
@@ -113,4 +114,32 @@ func ConnectEcons() *gorm.DB {
 	EconsDB = db
 	log.Println("ECONS SQL Server Connected Successfully")
 	return EconsDB
+}
+
+func ConnectSQLExpress() *gorm.DB {
+	if SqlExpressDB != nil {
+		return SqlExpressDB
+	}
+
+	config.LoadConfig()
+
+	db, err := gorm.Open(sqlserver.Open(config.AppConfig.SQLExpressDSN), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+	if err != nil {
+		panic("Error connecting SQL Express: " + err.Error())
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		panic("Error getting sqlDB for SQL Express: " + err.Error())
+	}
+
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(50)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
+
+	SqlExpressDB = db
+	log.Println("SQL Express Connected Successfully")
+	return SqlExpressDB
 }

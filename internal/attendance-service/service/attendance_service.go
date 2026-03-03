@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// ดึง attendance logs จาก app DB ผ่าน repository
+func (s *AttendanceService) GetAttendanceLogs() ([]model.Attendance, error) {
+	return s.AppRepo.GetAttendanceLogs()
+}
+
 // ดึงและ sync attendance logs จาก Cloudtime -> app DB
 func (s *AttendanceService) SyncFullLoadAttendance() error {
 	minBH, maxBH, err := s.CloudRepo.GetMinMaxBH()
@@ -86,11 +91,6 @@ func (s *AttendanceService) syncRangeAttendance(startBH, endBH int64) {
 
 		lastBH = cloudRecords[len(cloudRecords)-1].BH
 	}
-}
-
-// ดึง attendance logs จาก app DB ผ่าน repository
-func (s *AttendanceService) GetAttendanceLogs() ([]model.Attendance, error) {
-	return s.AppRepo.GetAttendanceLogs()
 }
 
 // func เรียกใช้การคำนวณ attendance daily และบันทึกลง DB ผ่าน repository

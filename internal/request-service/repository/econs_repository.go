@@ -1,7 +1,7 @@
 package repository
 
 import (
-	model "hr-program/internal/request-service/model"
+	model "hr-program/shared/models/request"
 
 	"gorm.io/gorm"
 )

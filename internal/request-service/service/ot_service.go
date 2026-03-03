@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"hr-program/internal/request-service/model"
+	model "hr-program/shared/models/request"
 )
 
 // ดึงและ sync OT logs จาก ECONS -> app DB

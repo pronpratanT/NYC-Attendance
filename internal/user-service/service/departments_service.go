@@ -1,8 +1,8 @@
 package service
 
 import (
-	model "hr-program/internal/user-service/model/departments"
 	repository "hr-program/internal/user-service/repository/departments"
+	model "hr-program/shared/models/users"
 	"log"
 	"sync"
 )
