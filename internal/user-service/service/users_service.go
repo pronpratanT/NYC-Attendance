@@ -1,31 +1,15 @@
 package service
 
 import (
-	deprepository "hr-program/internal/user-service/repository/departments"
-	repository "hr-program/internal/user-service/repository/users"
 	model "hr-program/shared/models/users"
 	"log"
 	"strings"
 	"sync"
 )
 
-type UserService struct {
-	CloudRepo *repository.CloudtimeUserRepository
-	AppRepo   *repository.UserRepository
-	DepRepo   *deprepository.DepartmentsRepository
-}
+func (s *UserService) SyncFullLoadUsers() error {
 
-func NewUserService(cloudRepo *repository.CloudtimeUserRepository, appRepo *repository.UserRepository, depRepo *deprepository.DepartmentsRepository) *UserService {
-	return &UserService{
-		CloudRepo: cloudRepo,
-		AppRepo:   appRepo,
-		DepRepo:   depRepo,
-	}
-}
-
-func (s *UserService) SyncFullLoad() error {
-
-	minID, maxID, err := s.CloudRepo.GetMinMaxUserSerial()
+	minID, maxID, err := s.CloudtimeUserRepo.GetMinMaxUserSerial()
 	if err != nil {
 		return err
 	}
@@ -36,7 +20,7 @@ func (s *UserService) SyncFullLoad() error {
 	go func() {
 		defer wg.Done()
 		// Sync full load ในช่วง [minID .. maxID]
-		s.syncRange(minID, maxID)
+		s.syncRangeUsers(minID, maxID)
 	}()
 
 	wg.Wait()
@@ -44,14 +28,14 @@ func (s *UserService) SyncFullLoad() error {
 	return nil
 }
 
-func (s *UserService) syncRange(startID, endID int64) {
+func (s *UserService) syncRangeUsers(startID, endID int64) {
 
 	batchSize := 3000
 	// เริ่มจาก startID-1 เพื่อให้เงื่อนไข id > lastID ครอบคลุม record แรกสุด (id == startID)
 	lastID := startID - 1
 
 	for {
-		cloudRecords, err := s.CloudRepo.GetBatchByUserSerialRange(lastID, endID, batchSize)
+		cloudRecords, err := s.CloudtimeUserRepo.GetBatchByUserSerialRange(lastID, endID, batchSize)
 		if err != nil {
 			log.Println("Fetch users error:", err)
 			return

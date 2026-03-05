@@ -1,13 +1,16 @@
 package main
 
 import (
-	"hr-program/internal/attendance-service/app/router"
-	"hr-program/internal/attendance-service/handler"
 	attrepo "hr-program/internal/attendance-service/repository"
 	reqrepo "hr-program/internal/request-service/repository"
 	deprepo "hr-program/internal/user-service/repository/departments"
 	shfrepo "hr-program/internal/user-service/repository/shifts"
 	usrrepo "hr-program/internal/user-service/repository/users"
+
+	attroute "hr-program/internal/attendance-service/app/router"
+	atthandler "hr-program/internal/attendance-service/handler"
+	usrroute "hr-program/internal/user-service/app/router"
+	usrhandler "hr-program/internal/user-service/handler"
 
 	"hr-program/shared/config"
 	db "hr-program/shared/connection"
@@ -30,19 +33,19 @@ func main() {
 	econsDB := db.ConnectEcons()
 	sqlExpressDB := db.ConnectSQLExpress()
 
-	// 🔹 ทดสอบว่า SQL Express ใช้งานได้จริง
-	if sqlExpressDB != nil {
-		if err := sqlExpressDB.Exec("SELECT 1").Error; err != nil {
-			log.Fatalf("SQL Express ping failed: %v", err)
-		}
-		log.Println("SQL Express ping OK")
+	// // 🔹 ทดสอบว่า SQL Express ใช้งานได้จริง
+	// if sqlExpressDB != nil {
+	// 	if err := sqlExpressDB.Exec("SELECT 1").Error; err != nil {
+	// 		log.Fatalf("SQL Express ping failed: %v", err)
+	// 	}
+	// 	log.Println("SQL Express ping OK")
 
-		// Debug columns and data types of TMSHIFT from SQL Express
-		shiftSqlExpressRepo := shfrepo.NewSQLExpressShiftRepository(sqlExpressDB)
-		if err := shiftSqlExpressRepo.DebugDescribeTMSHIFT(); err != nil {
-			log.Printf("DebugDescribeTMSHIFT error: %v", err)
-		}
-	}
+	// 	// Debug columns and data types of TMSHIFT from SQL Express
+	// 	shiftSqlExpressRepo := shfrepo.NewSQLExpressShiftRepository(sqlExpressDB)
+	// 	if err := shiftSqlExpressRepo.DebugDescribeTMSHIFT(); err != nil {
+	// 		log.Printf("DebugDescribeTMSHIFT error: %v", err)
+	// 	}
+	// }
 
 	// Init repositories for attendance service
 	attAppRepo := attrepo.NewAttendanceRepository(appDB)
@@ -54,8 +57,8 @@ func main() {
 	depAppRepo := deprepo.NewDepartmentsRepository(appDB)
 	depCloudRepo := deprepo.NewCloudtimeDepartmentsRepository(cloudDB)
 	// Init repositories for user service - shifts
-	// shiftAppRepo := shfrepo.NewShiftsRepository(sqlExpressDB)
-	// shiftSqlExpressRepo := shfrepo.NewSQLExpressShiftRepository(sqlExpressDB)
+	shiftAppRepo := shfrepo.NewShiftsRepository(appDB)
+	shiftSqlExpressRepo := shfrepo.NewSQLExpressShiftRepository(sqlExpressDB)
 
 	// Init repositories for request service - OT
 	otAppRepo := reqrepo.NewOTRepository(appDB)
@@ -64,24 +67,24 @@ func main() {
 
 	// Init services
 	attendanceService := attservice.NewAttendanceService(attCloudRepo, attAppRepo, usrAppRepo)
-	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo, depAppRepo)
-	departmentService := usrservice.NewDepartmentsService(depCloudRepo, depAppRepo)
+	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo, depAppRepo, depCloudRepo, shiftSqlExpressRepo, shiftAppRepo)
 	requestService := reqservice.NewRequestService(otAppRepo, econsRepo, usrAppRepo, holidayRepo)
-	// shiftsService := usrservice.NewShiftsService(shiftSqlExpressRepo, shiftAppRepo)
 
 	// handler + router
-	attendanceHandler := handler.NewAttendanceHandler(attendanceService)
-	r := router.AttendanceRouter(attendanceHandler)
+	attendanceHandler := atthandler.NewAttendanceHandler(attendanceService)
+	r := attroute.AttendanceRouter(attendanceHandler)
+	userHandler := usrhandler.NewUserHandler(userService)
+	r = usrroute.UserRouter(userHandler)
 
 	// Initial sync เบื้องหลังครั้งแรกตอน start service
 	go func() {
 		if err := attendanceService.SyncFullLoadAttendance(); err != nil {
 			log.Println("Initial sync attendance failed:", err)
 		}
-		if err := userService.SyncFullLoad(); err != nil {
+		if err := userService.SyncFullLoadUsers(); err != nil {
 			log.Println("Initial sync users failed:", err)
 		}
-		if err := departmentService.SyncFullLoad(); err != nil {
+		if err := userService.SyncFullLoadDeps(); err != nil {
 			log.Println("Initial sync departments failed:", err)
 		}
 		if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
@@ -96,12 +99,16 @@ func main() {
 		if err := requestService.SyncHolidays(); err != nil {
 			log.Println("Initial sync holidays failed:", err)
 		}
+		// กะการทำงานจาก SQL Express ข้อมูลจาก Bplus
+		// if err := userService.GenerateAndSaveShifts(); err != nil {
+		// 	log.Println("Initial process shifts failed:", err)
+		// }
 		log.Println("Initial sync completed successfully")
 	}()
 
-	// Scheduler รัน sync + generate attendance_daily ซ้ำทุก ๆ 5 นาที โดยไม่ต้อง restart container
+	// Scheduler รัน sync + generate attendance_daily ซ้ำทุก ๆ 10 นาที โดยไม่ต้อง restart container
 	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
+		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
 			if err := attendanceService.SyncFullLoadAttendance(); err != nil {

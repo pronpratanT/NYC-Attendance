@@ -15,7 +15,7 @@ func NewDepartmentsRepository(db *gorm.DB) *DepartmentsRepository {
 	return &DepartmentsRepository{DB: db}
 }
 
-func (r *DepartmentsRepository) BulkInsert(data []model.Departments) error {
+func (r *DepartmentsRepository) BulkInsertDep(data []model.Departments) error {
 	return r.DB.
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "dep_no"}},

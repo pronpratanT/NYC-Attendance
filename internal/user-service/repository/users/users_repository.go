@@ -12,12 +12,12 @@ type UserRepository struct {
 	DB *gorm.DB
 }
 
-type UserRepositoryInterface interface {
-	GetUserIDMapByEmployeeIDs(employeeIDs []string) (map[string]int64, error)
-}
-
 func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{DB: db}
+}
+
+type UserRepositoryInterface interface {
+	GetUserIDMapByEmployeeIDs(employeeIDs []string) (map[string]int64, error)
 }
 
 func (r *UserRepository) BulkInsert(data []model.Users) error {
