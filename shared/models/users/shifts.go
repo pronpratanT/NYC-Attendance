@@ -4,6 +4,8 @@ import "time"
 
 type Shifts struct {
 	ID           int64      `gorm:"column:id" json:"id"`
+	ShiftKey     int        `gorm:"column:shift_key;not null" json:"shift_key"`
+	ShiftCode    string     `gorm:"column:shift_code;size:20;not null" json:"shift_code"`
 	ShiftName    string     `gorm:"column:shift_name;size:50;not null;uniqueIndex:ux_shifts_name" json:"shift_name"`
 	StartTime    time.Time  `gorm:"column:start_time;type:time;not null" json:"start_time"`
 	EndTime      time.Time  `gorm:"column:end_time;type:time;not null" json:"end_time"`

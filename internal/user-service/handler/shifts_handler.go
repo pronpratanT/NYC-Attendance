@@ -1,38 +1,47 @@
 package handler
 
-import (
-	"net/http"
+// func (h *UserHandler) GetShifts(c *gin.Context) {
+// 	limit := 300 // You can set a default limit or get it from query parameters
+// 	usr, err := h.Service.GetLatestShifts(limit)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{
+// 			"error": "Failed to retrieve shifts",
+// 		})
+// 		return
+// 	}
 
-	"github.com/gin-gonic/gin"
-)
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"data":  usr,
+// 		"total": len(usr),
+// 	})
+// }
 
-func (h *UserHandler) GetShifts(c *gin.Context) {
-	limit := 10 // You can set a default limit or get it from query parameters
-	usr, err := h.Service.GetLatestShifts(limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to retrieve shifts",
-		})
-		return
-	}
+// func (h *UserHandler) GetData(c *gin.Context) {
+// 	data, err := h.Service.GetData()
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{
+// 			"error": "Failed to retrieve data",
+// 		})
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":  usr,
-		"total": len(usr),
-	})
-}
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"data":  data,
+// 		"total": len(data),
+// 	})
+// }
 
-func (h *UserHandler) GetUserRaw(c *gin.Context) {
-	user, err := h.Service.GetUserRaw()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to retrieve user data",
-		})
-		return
-	}
+// func (h *UserHandler) GetShiftDetails(c *gin.Context) {
+// 	shifts, err := h.Service.GetShifts()
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{
+// 			"error": "Failed to retrieve shift details",
+// 		})
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":  user,
-		"total": len(user),
-	})
-}
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"data":  shifts,
+// 		"total": len(shifts),
+// 	})
+// }

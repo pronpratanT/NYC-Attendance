@@ -41,43 +41,64 @@ func (SQLExpressShifts) TableName() string {
 }
 
 type SQLExpressUser struct {
-	PRS_WELFARE_D time.Time `gorm:"column:PRS_WELFARE_D"`
-
-	PRS_2FN_NO  string    `gorm:"column:PRS_2FN_NO"`
-	PRS_2FN_DD  time.Time `gorm:"column:PRS_2FN_DD"`
-	PRS_2FN_DDE time.Time `gorm:"column:PRS_2FN_DDE"`
-	PRS_2FN_DDC time.Time `gorm:"column:PRS_2FN_DDC"`
-
-	PRS_FN_SCHEME_CD string `gorm:"column:PRS_FN_SCHEME_CD"`
-	PRS_FN_SUBFN1_CD string `gorm:"column:PRS_FN_SUBFN1_CD"`
-	PRS_FN_SUBFN2_CD string `gorm:"column:PRS_FN_SUBFN2_CD"`
-	PRS_FN_SUBFN3_CD string `gorm:"column:PRS_FN_SUBFN3_CD"`
-
-	PRS_FN_SUBFN1_E float64 `gorm:"column:PRS_FN_SUBFN1_E"`
-	PRS_FN_SUBFN2_E float64 `gorm:"column:PRS_FN_SUBFN2_E"`
-	PRS_FN_SUBFN3_E float64 `gorm:"column:PRS_FN_SUBFN3_E"`
-
-	PRS_FN_SUBFN1_C float64 `gorm:"column:PRS_FN_SUBFN1_C"`
-	PRS_FN_SUBFN2_C float64 `gorm:"column:PRS_FN_SUBFN2_C"`
-	PRS_FN_SUBFN3_C float64 `gorm:"column:PRS_FN_SUBFN3_C"`
-
-	PRS_2FN_SCHEME_CD string `gorm:"column:PRS_2FN_SCHEME_CD"`
-	PRS_2FN_SUBFN1_CD string `gorm:"column:PRS_2FN_SUBFN1_CD"`
-	PRS_2FN_SUBFN2_CD string `gorm:"column:PRS_2FN_SUBFN2_CD"`
-	PRS_2FN_SUBFN3_CD string `gorm:"column:PRS_2FN_SUBFN3_CD"`
-
-	PRS_2FN_SUBFN1_E float64 `gorm:"column:PRS_2FN_SUBFN1_E"`
-	PRS_2FN_SUBFN2_E float64 `gorm:"column:PRS_2FN_SUBFN2_E"`
-	PRS_2FN_SUBFN3_E float64 `gorm:"column:PRS_2FN_SUBFN3_E"`
-
-	PRS_2FN_SUBFN1_C float64 `gorm:"column:PRS_2FN_SUBFN1_C"`
-	PRS_2FN_SUBFN2_C float64 `gorm:"column:PRS_2FN_SUBFN2_C"`
-	PRS_2FN_SUBFN3_C float64 `gorm:"column:PRS_2FN_SUBFN3_C"`
-
-	PRS_EWF_D  time.Time `gorm:"column:PRS_EWF_D"`
-	PRS_EWF_NO string    `gorm:"column:PRS_EWF_NO"`
+	EmpAccess       int       `json:"emp_access" gorm:"column:EMP_ACCESS"`
+	EmpAddr1        string    `json:"emp_addr_1" gorm:"column:EMP_ADDR_1"`
+	EmpAddr2        string    `json:"emp_addr_2" gorm:"column:EMP_ADDR_2"`
+	EmpAddr3        string    `json:"emp_addr_3" gorm:"column:EMP_ADDR_3"`
+	EmpAddrCountry  string    `json:"emp_addr_country" gorm:"column:EMP_ADDR_COUNTRY"`
+	EmpAddrDistrict string    `json:"emp_addr_district" gorm:"column:EMP_ADDR_DISTRICT"`
+	EmpAddrProvince string    `json:"emp_addr_province" gorm:"column:EMP_ADDR_PROVINCE"`
+	EmpAddrSubDist  string    `json:"emp_addr_sub_district" gorm:"column:EMP_ADDR_SUB_DISTRICT"`
+	EmpAlert        int       `json:"emp_alert" gorm:"column:EMP_ALERT"`
+	EmpAlertMsg     *string   `json:"emp_alert_msg" gorm:"column:EMP_ALERT_MSG"`
+	EmpBirth        time.Time `json:"emp_birth" gorm:"column:EMP_BIRTH"`
+	EmpEmail        string    `json:"emp_email" gorm:"column:EMP_EMAIL"`
+	EmpEName        string    `json:"emp_e_name" gorm:"column:EMP_E_NAME"`
+	EmpGender       int       `json:"emp_gender" gorm:"column:EMP_GENDER"`
+	EmpIntl         string    `json:"emp_intl" gorm:"column:EMP_INTL"`
+	EmpICard        string    `json:"emp_i_card" gorm:"column:EMP_I_CARD"`
+	EmpIExpire      time.Time `json:"emp_i_expire" gorm:"column:EMP_I_EXPIRE"`
+	EmpIIssue       string    `json:"emp_i_issue" gorm:"column:EMP_I_ISSUE"`
+	EmpKey          int       `json:"emp_key" gorm:"primaryKey;column:EMP_KEY"`
+	EmpMarital      string    `json:"emp_marital" gorm:"column:EMP_MARITAL"`
+	EmpName         string    `json:"emp_name" gorm:"column:EMP_NAME"`
+	EmpNotiID       string    `json:"emp_noti_id" gorm:"column:EMP_NOTI_ID"`
+	EmpPost         string    `json:"emp_post" gorm:"column:EMP_POST"`
+	EmpRemark       *string   `json:"emp_remark" gorm:"column:EMP_REMARK"`
+	EmpScPrx        int       `json:"emp_sc_prx" gorm:"column:EMP_SC_PRX"`
+	EmpSlipMsg      *string   `json:"emp_slip_msg" gorm:"column:EMP_SLIP_MSG"`
+	EmpSlipPw       *string   `json:"emp_slip_pw" gorm:"column:EMP_SLIP_PW"`
+	EmpSurnme       string    `json:"emp_surnme" gorm:"column:EMP_SURNME"`
+	EmpTaxID        *string   `json:"emp_tax_id" gorm:"column:EMP_TAX_ID"`
+	EmpTel          string    `json:"emp_tel" gorm:"column:EMP_TEL"`
 }
 
 func (SQLExpressUser) TableName() string {
-	return "PERSONALINFO"
+	return "EMPFILE"
+}
+
+type SQLExpressMasterKey struct {
+	TmrBr     int       `json:"tmr_br" gorm:"column:TMR_BR"`
+	TmrDate   time.Time `json:"tmr_date" gorm:"column:TMR_DATE"`
+	TmrDept   int       `json:"tmr_dept" gorm:"column:TMR_DEPT"`
+	TmrDf     int       `json:"tmr_df" gorm:"column:TMR_DF"`
+	TmrDfApr  int       `json:"tmr_df_apr" gorm:"column:TMR_DF_APR"`
+	TmrDfPr   *int      `json:"tmr_df_pr" gorm:"column:TMR_DF_PR"`
+	TmrDfT    int       `json:"tmr_df_t" gorm:"column:TMR_DF_T"`
+	TmrEmp    int       `json:"tmr_emp" gorm:"column:TMR_EMP"`
+	TmrKey    int       `json:"tmr_key" gorm:"primaryKey;column:TMR_KEY"`
+	TmrQty    string    `json:"tmr_qty" gorm:"column:TMR_QTY"`
+	TmrQtyApr string    `json:"tmr_qty_apr" gorm:"column:TMR_QTY_APR"`
+	TmrQtyT   string    `json:"tmr_qty_t" gorm:"column:TMR_QTY_T"`
+	TmrSctn   int       `json:"tmr_sctn" gorm:"column:TMR_SCTN"`
+	TmrSf     int       `json:"tmr_sf" gorm:"column:TMR_SF"`
+	TmrSite   int       `json:"tmr_site" gorm:"column:TMR_SITE"`
+	TmrSs     int       `json:"tmr_ss" gorm:"column:TMR_SS"`
+	TmrStt    int       `json:"tmr_stt" gorm:"column:TMR_STT"`
+	TmrTev    int       `json:"tmr_tev" gorm:"column:TMR_TEV"`
+	TmrTrap   int       `json:"tmr_trap" gorm:"column:TMR_TRAP"`
+}
+
+func (SQLExpressMasterKey) TableName() string {
+	return "TMRESULT"
 }

@@ -33,20 +33,6 @@ func main() {
 	econsDB := db.ConnectEcons()
 	sqlExpressDB := db.ConnectSQLExpress()
 
-	// // 🔹 ทดสอบว่า SQL Express ใช้งานได้จริง
-	// if sqlExpressDB != nil {
-	// 	if err := sqlExpressDB.Exec("SELECT 1").Error; err != nil {
-	// 		log.Fatalf("SQL Express ping failed: %v", err)
-	// 	}
-	// 	log.Println("SQL Express ping OK")
-
-	// 	// Debug columns and data types of TMSHIFT from SQL Express
-	// 	shiftSqlExpressRepo := shfrepo.NewSQLExpressShiftRepository(sqlExpressDB)
-	// 	if err := shiftSqlExpressRepo.DebugDescribeTMSHIFT(); err != nil {
-	// 		log.Printf("DebugDescribeTMSHIFT error: %v", err)
-	// 	}
-	// }
-
 	// Init repositories for attendance service
 	attAppRepo := attrepo.NewAttendanceRepository(appDB)
 	attCloudRepo := attrepo.NewCloudtimeRepository(cloudDB)
@@ -66,7 +52,7 @@ func main() {
 	econsRepo := reqrepo.NewEconsRepository(econsDB)
 
 	// Init services
-	attendanceService := attservice.NewAttendanceService(attCloudRepo, attAppRepo, usrAppRepo)
+	attendanceService := attservice.NewAttendanceService(attCloudRepo, attAppRepo, usrAppRepo, shiftAppRepo)
 	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo, depAppRepo, depCloudRepo, shiftSqlExpressRepo, shiftAppRepo)
 	requestService := reqservice.NewRequestService(otAppRepo, econsRepo, usrAppRepo, holidayRepo)
 
@@ -102,6 +88,9 @@ func main() {
 		// กะการทำงานจาก SQL Express ข้อมูลจาก Bplus
 		// if err := userService.GenerateAndSaveShifts(); err != nil {
 		// 	log.Println("Initial process shifts failed:", err)
+		// }
+		// if err := userService.ProcessUserShifts(); err != nil {
+		// 	log.Println("Initial process user shifts failed:", err)
 		// }
 		log.Println("Initial sync completed successfully")
 	}()

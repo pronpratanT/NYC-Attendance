@@ -1,9 +1,7 @@
 package repository
 
 import (
-	"fmt"
 	model "hr-program/shared/models/users"
-	"log"
 
 	"gorm.io/gorm"
 )
@@ -23,44 +21,39 @@ func (r *SqlExpressShiftRepository) GetAllShifts() ([]model.SQLExpressShifts, er
 	return shifts, err
 }
 
-// GetLatestUserShifts เดิมใช้ดึง N แถวล่าสุด ตอนนี้ปรับให้ดึงทั้งหมด โดยเรียงตาม SF_KEY จากมากไปน้อย
-func (r *SqlExpressShiftRepository) GetLatestUserShifts(limit int) ([]model.SQLExpressUser, error) {
+func (r *SqlExpressShiftRepository) GetUserBplus() ([]model.SQLExpressUser, error) {
 	var usr []model.SQLExpressUser
-
-	query := fmt.Sprintf("SELECT * FROM PERSONALINFO")
-	err := r.DB.Raw(query).Scan(&usr).Error
+	err := r.DB.Find(&usr).Error
 	return usr, err
 }
 
-func (r *SqlExpressShiftRepository) GetUserRaw() ([]map[string]interface{}, error) {
-	var rows []map[string]interface{}
-
-	// ดึงไม่เกิน 10 แถวจาก TMRESULT (SQL Server ใช้ TOP)
-	if err := r.DB.Raw("SELECT TOP 10 * FROM TMRESULT").Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	return rows, nil
+func (r *SqlExpressShiftRepository) GetMasterKey() ([]model.SQLExpressMasterKey, error) {
+	var mk []model.SQLExpressMasterKey
+	err := r.DB.Where("TMR_DATE = ?", "2026-03-04T00:00:00Z").Find(&mk).Error
+	return mk, err
 }
 
-func (r *SqlExpressShiftRepository) DebugDescribeTMSHIFT() error {
-	sqlDB, err := r.DB.DB()
-	if err != nil {
-		return err
-	}
+// GetLatestUserShifts เดิมใช้ดึง N แถวล่าสุด ตอนนี้ปรับให้ดึงทั้งหมด โดยเรียงตาม SF_KEY จากมากไปน้อย
+// func (r *SqlExpressShiftRepository) GetLatestUserShifts(limit int) ([]model.SQLExpressUser, error) {
+// 	var usr []model.SQLExpressUser
 
-	rows, err := sqlDB.Query("SELECT TOP 1 * FROM PERSONALINFO")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+// 	query := fmt.Sprintf("SELECT * FROM EMPFILE")
+// 	err := r.DB.Raw(query).Scan(&usr).Error
+// 	return usr, err
+// }
 
-	cols, err := rows.ColumnTypes()
-	if err != nil {
-		return err
-	}
+// func (r *SqlExpressShiftRepository) GetLatestMaster() ([]model.SQLExpressMasterKey, error) {
+// 	var mk []model.SQLExpressMasterKey
 
-	for _, c := range cols {
-		log.Printf("Column: %s, DB Type: %s", c.Name(), c.DatabaseTypeName())
-	}
-	return nil
-}
+// 	query := fmt.Sprintf("SELECT * FROM TMRESULT WHERE TMR_DATE = '2026-03-04T00:00:00Z'")
+// 	err := r.DB.Raw(query).Scan(&mk).Error
+// 	return mk, err
+// }
+
+// func (r *SqlExpressShiftRepository) GetLatestShifts(limit int) ([]model.SQLExpressShifts, error) {
+// 	var shifts []model.SQLExpressShifts
+
+// 	query := fmt.Sprintf("SELECT * FROM TMSHIFT")
+// 	err := r.DB.Raw(query).Scan(&shifts).Error
+// 	return shifts, err
+// }

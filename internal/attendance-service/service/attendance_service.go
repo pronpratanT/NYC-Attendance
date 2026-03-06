@@ -210,15 +210,27 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 		// 🔹 กำหนด Shift ตรงนี้
 		// =========================
 		// shift = mockup shift 8:00-17:00
-		shift := s.getMockShift(key.UserID, key.WorkDate)
+		// shift := s.getMockShift(key.UserID, key.WorkDate)
+		shifts, err := s.ShiftRepo.GetUserShiftByUserIDAndDate(key.UserID, key.WorkDate)
+		if err != nil {
+			return nil, err
+		}
+		if len(shifts) == 0 {
+			// ถ้าไม่มีข้อมูลกะงาน ให้ข้ามการคำนวณเวลาทำงาน และถือว่าเป็น missing scan เพราะไม่มีข้อมูลกะงานมาเทียบ
+			daily.MissingScan = true
+			result = append(result, daily)
+			continue
+		}
 
 		// เก็บเฉพาะเวลาเป็น string เช่น "08:00:00" เตรียมข้อมูลเป็น string postgres แปลง string -> time.Time ให้เอง
-		shiftStart := fmt.Sprintf("%02d:%02d:00", shift.StartHour, shift.StartMinute)
-		shiftEnd := fmt.Sprintf("%02d:%02d:00", shift.EndHour, shift.EndMinute)
+		// จากผลลัพธ์ที่อาจมีหลาย record เลือกตัวแรกมาใช้
+		selected := shifts[0]
+		shiftStart := fmt.Sprintf("%02d:%02d:00", selected.ShiftDetails.StartTime.Hour(), selected.ShiftDetails.StartTime.Minute())
+		shiftEnd := fmt.Sprintf("%02d:%02d:00", selected.ShiftDetails.EndTime.Hour(), selected.ShiftDetails.EndTime.Minute())
 
 		daily.ShiftStart = &shiftStart
 		daily.ShiftEnd = &shiftEnd
-		daily.BreakMinutes = shift.BreakMinutes
+		daily.BreakMinutes = selected.ShiftDetails.BreakMinutes
 
 		// =========================
 		// 🔹 เรียก calculate หลังจากมีข้อมูลครบ
