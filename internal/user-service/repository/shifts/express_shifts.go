@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	model "hr-program/shared/models/users"
 
 	"gorm.io/gorm"
@@ -27,9 +28,18 @@ func (r *SqlExpressShiftRepository) GetUserBplus() ([]model.SQLExpressUser, erro
 	return usr, err
 }
 
-func (r *SqlExpressShiftRepository) GetMasterKey() ([]model.SQLExpressMasterKey, error) {
+// func (r *SqlExpressShiftRepository) GetMasterKey() ([]model.SQLExpressMasterKey, error) {
+// 	var mk []model.SQLExpressMasterKey
+// 	err := r.DB.Where("TMR_DATE = ?", "2026-03-04T00:00:00Z").Find(&mk).Error
+// 	return mk, err
+// }
+
+func (r *SqlExpressShiftRepository) GetMasterKeyByDateRange(startDate, endDate string) ([]model.SQLExpressMasterKey, error) {
 	var mk []model.SQLExpressMasterKey
-	err := r.DB.Where("TMR_DATE = ?", "2026-03-04T00:00:00Z").Find(&mk).Error
+	err := r.DB.
+		Where("TMR_DATE >= ? AND TMR_DATE < DATEADD(day, 1, ?)", startDate, endDate).
+		Order("TMR_EMP ASC, TMR_DATE ASC, TMR_KEY DESC").
+		Find(&mk).Error
 	return mk, err
 }
 
@@ -42,13 +52,13 @@ func (r *SqlExpressShiftRepository) GetMasterKey() ([]model.SQLExpressMasterKey,
 // 	return usr, err
 // }
 
-// func (r *SqlExpressShiftRepository) GetLatestMaster() ([]model.SQLExpressMasterKey, error) {
-// 	var mk []model.SQLExpressMasterKey
+func (r *SqlExpressShiftRepository) GetLatestMaster() ([]model.SQLExpressMasterKey, error) {
+	var mk []model.SQLExpressMasterKey
 
-// 	query := fmt.Sprintf("SELECT * FROM TMRESULT WHERE TMR_DATE = '2026-03-04T00:00:00Z'")
-// 	err := r.DB.Raw(query).Scan(&mk).Error
-// 	return mk, err
-// }
+	query := fmt.Sprintf("SELECT * FROM TMRESULT WHERE TMR_DATE = '2026-03-04T00:00:00Z'")
+	err := r.DB.Raw(query).Scan(&mk).Error
+	return mk, err
+}
 
 // func (r *SqlExpressShiftRepository) GetLatestShifts(limit int) ([]model.SQLExpressShifts, error) {
 // 	var shifts []model.SQLExpressShifts

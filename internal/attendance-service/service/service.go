@@ -8,12 +8,12 @@ import (
 
 type AttendanceService struct {
 	CloudRepo *repository.CloudtimeRepository
-	AppRepo   *repository.AttendanceRepository
+	AppRepo   repository.AttendanceRepositoryInterface
 	UserRepo  usrRepo.UserRepositoryInterface
 	ShiftRepo shiftRepo.ShiftRepositoryInterface
 }
 
-func NewAttendanceService(cloudRepo *repository.CloudtimeRepository, appRepo *repository.AttendanceRepository, userRepo usrRepo.UserRepositoryInterface, shiftRepo shiftRepo.ShiftRepositoryInterface) *AttendanceService {
+func NewAttendanceService(cloudRepo *repository.CloudtimeRepository, appRepo repository.AttendanceRepositoryInterface, userRepo usrRepo.UserRepositoryInterface, shiftRepo shiftRepo.ShiftRepositoryInterface) *AttendanceService {
 	return &AttendanceService{
 		CloudRepo: cloudRepo,
 		AppRepo:   appRepo,

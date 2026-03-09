@@ -20,6 +20,8 @@ import (
 	usrservice "hr-program/internal/user-service/service"
 	"log"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -58,9 +60,12 @@ func main() {
 
 	// handler + router
 	attendanceHandler := atthandler.NewAttendanceHandler(attendanceService)
-	r := attroute.AttendanceRouter(attendanceHandler)
 	userHandler := usrhandler.NewUserHandler(userService)
-	r = usrroute.UserRouter(userHandler)
+
+	r := gin.Default()
+
+	attroute.AttendanceRouter(r, attendanceHandler)
+	usrroute.UserRouter(r, userHandler)
 
 	// Initial sync เบื้องหลังครั้งแรกตอน start service
 	go func() {
@@ -89,9 +94,10 @@ func main() {
 		// if err := userService.GenerateAndSaveShifts(); err != nil {
 		// 	log.Println("Initial process shifts failed:", err)
 		// }
-		// if err := userService.ProcessUserShifts(); err != nil {
-		// 	log.Println("Initial process user shifts failed:", err)
-		// }
+		// UserShifts กะการทำงานของพนักงาน
+		if err := userService.ProcessUserShifts(); err != nil {
+			log.Println("Initial process user shifts failed:", err)
+		}
 		log.Println("Initial sync completed successfully")
 	}()
 

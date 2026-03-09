@@ -2,8 +2,10 @@ package service
 
 import (
 	"fmt"
+	"hr-program/internal/user-service/dto"
 	model "hr-program/shared/models/users"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,13 +15,17 @@ import (
 // 	return s.SQLExpressRepo.GetLatestUserShifts(limit)
 // }
 
-// func (s *UserService) GetData() ([]model.SQLExpressMasterKey, error) {
-// 	return s.SQLExpressRepo.GetLatestMaster()
-// }
+func (s *UserService) GetData() ([]model.SQLExpressMasterKey, error) {
+	return s.SQLExpressRepo.GetLatestMaster()
+}
 
 // func (s *UserService) GetShifts() ([]model.SQLExpressShifts, error) {
 // 	return s.SQLExpressRepo.GetLatestShifts(100)
 // }
+
+func (s *UserService) GetUserShiftByUserIDAndDate(userID int64, date time.Time) ([]dto.UserShiftAndShiftDetails, error) {
+	return s.ShiftRepo.GetUserShiftByUserIDAndDate(userID, date)
+}
 
 func (s *UserService) GenerateAndSaveShifts() error {
 	// ดึงข้อมูล shift จาก TMSHIFT ผ่าน SQLExpressRepo
@@ -117,7 +123,8 @@ func (s *UserService) ProcessUserShifts() error {
 		return err
 	}
 
-	sqlMaster, err := s.SQLExpressRepo.GetMasterKey()
+	//EDIT
+	sqlMaster, err := s.SQLExpressRepo.GetMasterKeyByDateRange("2026-01-21", "2026-02-20")
 	if err != nil {
 		return err
 	}
@@ -147,8 +154,15 @@ func buildUserShiftRecords(users map[int]int64, shiftKeyMap map[int]int64, maste
 			continue
 		}
 
-		now := time.Now()
-		dateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		// now := time.Now()
+		// dateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		dateOnly := time.Date(
+			master.TmrDate.Year(),
+			master.TmrDate.Month(),
+			master.TmrDate.Day(),
+			0, 0, 0, 0,
+			master.TmrDate.Location(),
+		)
 		key := fmt.Sprintf("%d-%d-%s", userID, shiftID, dateOnly.Format("2006-01-02"))
 		if _, exists := seen[key]; exists {
 			continue
@@ -163,7 +177,52 @@ func buildUserShiftRecords(users map[int]int64, shiftKeyMap map[int]int64, maste
 		})
 	}
 
-	return records
+	return compressUserShiftRanges(records)
+}
+
+// func สำหรับการหาจำนวนวันติดต่อกันของกะเดียวกัน เพื่อบีบช่วงวันที่ให้เหลือน้อยที่สุด
+// func compressUserShiftRanges(daily []model.UserShifts, maxGapDays int) []model.UserShifts
+func compressUserShiftRanges(daily []model.UserShifts) []model.UserShifts {
+	if len(daily) == 0 {
+		return nil
+	}
+
+	sort.Slice(daily, func(i, j int) bool {
+		if daily[i].UserID != daily[j].UserID {
+			return daily[i].UserID < daily[j].UserID
+		}
+		return daily[i].StartDate.Before(daily[j].StartDate)
+	})
+
+	var result []model.UserShifts
+	currentRange := daily[0]
+
+	for i := 1; i < len(daily); i++ {
+		next := daily[i]
+
+		lastDate := currentRange.StartDate
+		if currentRange.EndDate != nil {
+			lastDate = *currentRange.EndDate
+		}
+
+		canMerge := currentRange.UserID == next.UserID &&
+			currentRange.ShiftID == next.ShiftID &&
+			next.StartDate.Equal(lastDate.AddDate(0, 0, 1))
+
+		if canMerge {
+			end := next.StartDate
+			currentRange.EndDate = &end
+			continue
+		}
+
+		result = append(result, currentRange)
+		currentRange = next
+	}
+
+	currentRange.EndDate = nil
+	result = append(result, currentRange)
+
+	return result
 }
 
 // ตัดคำนำหน้าชื่อภาษาไทยพื้นฐานออก เช่น นาย, นาง, นางสาว, น.ส.

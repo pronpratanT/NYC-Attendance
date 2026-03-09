@@ -50,11 +50,11 @@ func (r *ShiftsRepository) GetUserShiftByUserIDAndDate(userID int64, date time.T
 		ShiftKey     int        `gorm:"column:shift_key"`
 		ShiftCode    string     `gorm:"column:shift_code"`
 		ShiftName    string     `gorm:"column:shift_name"`
-		StartTime    time.Time  `gorm:"column:start_time"`
-		EndTime      time.Time  `gorm:"column:end_time"`
+		StartTime    string     `gorm:"column:start_time"`
+		EndTime      string     `gorm:"column:end_time"`
 		Break        bool       `gorm:"column:break"`
-		BreakOut     time.Time  `gorm:"column:break_out"`
-		BreakIn      time.Time  `gorm:"column:break_in"`
+		BreakOut     string     `gorm:"column:break_out"`
+		BreakIn      string     `gorm:"column:break_in"`
 		BreakMinutes int        `gorm:"column:break_minutes"`
 		IsNightShift bool       `gorm:"column:is_night_shift"`
 		LivingCost   float64    `gorm:"column:living_cost"`
@@ -66,7 +66,7 @@ func (r *ShiftsRepository) GetUserShiftByUserIDAndDate(userID int64, date time.T
 			userID, date, date,
 		).
 		Select(`
-		us.user_id,
+			us.user_id,
             us.shift_id,
             us.start_date,
             us.end_date,
@@ -91,6 +91,22 @@ func (r *ShiftsRepository) GetUserShiftByUserIDAndDate(userID int64, date time.T
 	// map ไปเป็น DTO ของคุณ
 	var result []dto.UserShiftAndShiftDetails
 	for _, rrow := range rows {
+		// พยายาม parse string -> time.Time ถ้า format ไม่ถูก ให้ใช้ค่า zero time แทน
+		parseTime := func(s string) time.Time {
+			if s == "" {
+				return time.Time{}
+			}
+			// รองรับรูปแบบ HH:MM:SS (เช่น 08:00:00)
+			if t, err := time.Parse("15:04:05", s); err == nil {
+				return t
+			}
+			// ถ้าเป็นรูปแบบเต็มที่มีวันที่หรือ timezone ให้ลองปล่อย driver จัดการรูปแบบมาตรฐาน
+			if t, err := time.Parse(time.RFC3339, s); err == nil {
+				return t
+			}
+			return time.Time{}
+		}
+
 		var endDateStr *string
 		if rrow.EndDate != nil {
 			s := rrow.EndDate.Format("2006-01-02")
@@ -106,11 +122,11 @@ func (r *ShiftsRepository) GetUserShiftByUserIDAndDate(userID int64, date time.T
 				ShiftKey:     rrow.ShiftKey,
 				ShiftCode:    rrow.ShiftCode,
 				ShiftName:    rrow.ShiftName,
-				StartTime:    rrow.StartTime,
-				EndTime:      rrow.EndTime,
+				StartTime:    parseTime(rrow.StartTime),
+				EndTime:      parseTime(rrow.EndTime),
 				Break:        rrow.Break,
-				BreakOut:     rrow.BreakOut,
-				BreakIn:      rrow.BreakIn,
+				BreakOut:     parseTime(rrow.BreakOut),
+				BreakIn:      parseTime(rrow.BreakIn),
 				BreakMinutes: rrow.BreakMinutes,
 				IsNightShift: rrow.IsNightShift,
 				LivingCost:   rrow.LivingCost,

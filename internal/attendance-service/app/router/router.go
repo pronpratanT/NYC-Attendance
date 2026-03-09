@@ -6,8 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AttendanceRouter(h *handler.AttendanceHandler) *gin.Engine {
-	r := gin.Default()
+func AttendanceRouter(r *gin.Engine, h *handler.AttendanceHandler) *gin.Engine {
 
 	api := r.Group("/api")
 	handler.AttendanceRoutes(api.Group("/attendance"), h)
