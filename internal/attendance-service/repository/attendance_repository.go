@@ -64,6 +64,20 @@ func (r *AttendanceRepository) GetAttendanceDailyByEmployeeID(employeeID int64) 
 	return attendance, nil
 }
 
+// GetAttendanceDailyByEmployeeIDAndDate ดึงข้อมูล attendance_daily ตาม user และวันที่เดียว
+func (r *AttendanceRepository) GetAttendanceDailyByEmployeeIDAndDate(employeeID int64, date string) ([]model.AttendanceDaily, error) {
+	var attendance []model.AttendanceDaily
+	if err := r.DB.
+		Model(&model.AttendanceDaily{}).
+		Where("user_id = ? AND work_date = ?", employeeID, date).
+		Order("work_date ASC").
+		Find(&attendance).Error; err != nil {
+		log.Println("Failed to get attendance daily by employee and date:", err)
+		return nil, err
+	}
+	return attendance, nil
+}
+
 func (r *AttendanceRepository) GetAttendanceDailyByEmployeeIDAndDateRange(employeeID int64, startDate, endDate string) ([]model.AttendanceDaily, error) {
 	var attendance []model.AttendanceDaily
 	if err := r.DB.

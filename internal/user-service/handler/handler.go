@@ -18,5 +18,6 @@ func UserRoutes(r *gin.RouterGroup, h *UserHandler) {
 	// r.GET("/shifts", h.GetShifts)
 	r.GET("/data", h.GetData)
 	// r.GET("/shift-details", h.GetShiftDetails)
+	r.GET("/shift-user-daterange", h.GetUserShiftByUserIDAndDateRange)
 	r.GET("/shift-user-date", h.GetUserShiftByUserIDAndDate)
 }

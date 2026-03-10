@@ -17,6 +17,7 @@ type AttendanceDaily struct {
 	AttendanceStatus string `gorm:"column:attendance_status;size:20;not null" json:"attendance_status"` // present / late / absent / leave / missing_scan / holiday
 
 	// Shift snapshot (store only time-of-day as string, e.g. "08:00:00")
+	ShiftID      *int64  `gorm:"column:shift_id" json:"shift_id,omitempty"`
 	ShiftStart   *string `gorm:"column:shift_start" json:"shift_start"`
 	ShiftEnd     *string `gorm:"column:shift_end" json:"shift_end"`
 	BreakMinutes int     `gorm:"column:break_minutes;default:0" json:"break_minutes"`

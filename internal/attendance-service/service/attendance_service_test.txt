@@ -35,7 +35,7 @@ func (t *testAppRepo) GetAttendanceDailyByEmployeeID(employeeID int64) ([]attmod
 	return nil, nil
 }
 
-func (t *testAppRepo) GetAttendanceDailyByEmployeeIDAndDateRange(employeeID int64, startDate, endDate string) ([]attmodel.AttendanceDaily, error) {
+func (t *testAppRepo) GetAttendanceDailyByEmployeeIDAndDate(employeeID int64, date string) ([]attmodel.AttendanceDaily, error) {
 	return nil, nil
 }
 

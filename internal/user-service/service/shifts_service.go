@@ -27,6 +27,10 @@ func (s *UserService) GetUserShiftByUserIDAndDate(userID int64, date time.Time) 
 	return s.ShiftRepo.GetUserShiftByUserIDAndDate(userID, date)
 }
 
+func (s *UserService) GetUserShiftByUserIDAndDateRange(userID int64, dateStart, dateEnd time.Time) ([]dto.UserShiftAndShiftDetails, error) {
+	return s.ShiftRepo.GetUserShiftByUserIDAndDateRange(userID, dateStart, dateEnd)
+}
+
 func (s *UserService) GenerateAndSaveShifts() error {
 	// ดึงข้อมูล shift จาก TMSHIFT ผ่าน SQLExpressRepo
 	shifts, err := s.ProcessShifts()

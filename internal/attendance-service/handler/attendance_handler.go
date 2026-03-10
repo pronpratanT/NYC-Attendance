@@ -59,7 +59,7 @@ func (h *AttendanceHandler) GetAttendanceDailyByEmployeeID(c *gin.Context) {
 	})
 }
 
-func (h *AttendanceHandler) GetAttendanceDailyByEmployeeIDAndDate(c *gin.Context) {
+func (h *AttendanceHandler) GetAttendanceDailyByEmployeeIDAndDateRange(c *gin.Context) {
 	employeeID, err := strconv.ParseInt(c.Param("employee_id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

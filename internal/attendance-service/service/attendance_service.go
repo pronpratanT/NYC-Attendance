@@ -2,8 +2,9 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
+	"hr-program/internal/user-service/dto"
 	model "hr-program/shared/models/attendance"
+	reqmodel "hr-program/shared/models/request"
 	"log"
 	"sort"
 	"sync"
@@ -108,77 +109,205 @@ func (s *AttendanceService) GenerateAndSaveAttendanceDaily() error {
 }
 
 // แปลง attendance_logs เป็นกลุ่มต่อคนต่อวัน และเรียงเวลาในแต่ละกลุ่ม
+// func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily, error) {
+// 	// ดึง attendance logs จาก app DB ผ่าน repository
+// 	attendanceLogs, err := s.AppRepo.GetAttendanceLogs()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	// collect employeeIDs
+// 	employeeSet := make(map[string]struct{})
+// 	for _, att := range attendanceLogs {
+// 		employeeSet[att.UserNo] = struct{}{}
+// 	}
+
+// 	employeeIDs := make([]string, 0, len(employeeSet))
+// 	for id := range employeeSet {
+// 		employeeIDs = append(employeeIDs, id)
+// 	}
+
+// 	// ดึง userID map ทีเดียว
+// 	userMap, err := s.UserRepo.GetUserIDMapByEmployeeIDs(employeeIDs)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	// group user_no + work_date
+// 	type groupKey struct {
+// 		UserID   int64
+// 		WorkDate time.Time
+// 	}
+
+// 	grouped := make(map[groupKey][]model.Attendance)
+
+// 	for _, att := range attendanceLogs {
+// 		UserID, ok := userMap[att.UserNo]
+// 		if !ok {
+// 			continue
+// 		}
+
+// 		workDate := time.Date(
+// 			att.SJ.Year(),
+// 			att.SJ.Month(),
+// 			att.SJ.Day(),
+// 			0, 0, 0, 0,
+// 			att.SJ.Location(),
+// 		)
+// 		key := groupKey{
+// 			UserID:   UserID,
+// 			WorkDate: workDate,
+// 		}
+// 		grouped[key] = append(grouped[key], att)
+// 	}
+
+// 	now := time.Now()
+// 	result := make([]model.AttendanceDaily, 0, len(grouped))
+// 	for key, logs := range grouped {
+// 		// เรียงเวลา
+// 		sort.Slice(logs, func(i, j int) bool {
+// 			return logs[i].SJ.Before(logs[j].SJ)
+// 		})
+
+// 		// หาแสกนครั้งแรกและครั้งสุดท้าย
+// 		firstIn := logs[0].SJ
+// 		lastOut := logs[len(logs)-1].SJ
+
+// 		// แปลง raw logs เป็น JSON
+// 		rawJSON, _ := json.Marshal(logs)
+
+// 		daily := model.AttendanceDaily{
+// 			UserID:           key.UserID,
+// 			WorkDate:         key.WorkDate,
+// 			DayType:          "workday", // สมมติเป็นวันทำงานก่อน
+// 			AttendanceStatus: "present",
+// 			FirstIn:          &firstIn,
+// 			LastOut:          &lastOut,
+// 			TotalScans:       len(logs),
+// 			RawScansJSON:     rawJSON,
+// 			CalculatedAt:     ptrTime(now),
+// 		}
+
+// 		// แปลง attendance logs -> []EditableScan -> EditedScansJSON
+// 		editableScans := make([]model.EditableScan, 0, len(logs))
+// 		for _, l := range logs {
+// 			editableScans = append(editableScans, model.EditableScan{
+// 				ScanTime:  l.SJ,
+// 				Type:      fxToType(l.FX),
+// 				Action:    "added",
+// 				CreatedBy: 0,
+// 				CreatedAt: l.SJ,
+// 			})
+// 		}
+
+// 		b, err := json.Marshal(editableScans)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		daily.EditedScansJSON = b
+// 		daily.EditVersion = 0
+
+// 		// =========================
+// 		// 🔹 กำหนด Shift ตรงนี้
+// 		// =========================
+// 		// shift = mockup shift 8:00-17:00
+// 		// shift := s.getMockShift(key.UserID, key.WorkDate)
+// 		shifts, err := s.ShiftRepo.GetUserShiftByUserIDAndDate(key.UserID, key.WorkDate)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		if len(shifts) == 0 {
+// 			// ถ้าไม่มีข้อมูลกะงาน ให้ข้ามการคำนวณเวลาทำงาน และถือว่าเป็น missing scan เพราะไม่มีข้อมูลกะงานมาเทียบ
+// 			daily.MissingScan = true
+// 			result = append(result, daily)
+// 			continue
+// 		}
+
+// 		// เก็บเฉพาะเวลาเป็น string เช่น "08:00:00" เตรียมข้อมูลเป็น string postgres แปลง string -> time.Time ให้เอง
+// 		// จากผลลัพธ์ที่อาจมีหลาย record เลือกตัวแรกมาใช้
+// 		selected := shifts[0]
+// 		shiftID := selected.ShiftID
+// 		daily.ShiftID = &shiftID
+// 		shiftStart := fmt.Sprintf("%02d:%02d:00", selected.ShiftDetails.StartTime.Hour(), selected.ShiftDetails.StartTime.Minute())
+// 		shiftEnd := fmt.Sprintf("%02d:%02d:00", selected.ShiftDetails.EndTime.Hour(), selected.ShiftDetails.EndTime.Minute())
+
+// 		daily.ShiftStart = &shiftStart
+// 		daily.ShiftEnd = &shiftEnd
+// 		daily.BreakMinutes = selected.ShiftDetails.BreakMinutes
+
+// 		// =========================
+// 		// 🔹 เรียก calculate หลังจากมีข้อมูลครบ
+// 		// =========================
+// 		if err := s.calculateWorkMinutes(&daily); err != nil {
+// 			return nil, err
+// 		}
+
+// 		// เรียกใช้ฟังก์ชันตรวจสอบการแสกนซ้ำ (duplicate scan) โดยดูจาก EditedScansJSON
+// 		if err := s.checkDuplicateScans(&daily); err != nil {
+// 			return nil, err
+// 		}
+
+// 		result = append(result, daily)
+// 	}
+
+// 	return result, nil
+// }
+
 func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily, error) {
-	// ดึง attendance logs จาก app DB ผ่าน repository
-	attendanceLogs, err := s.AppRepo.GetAttendanceLogs()
+	// 1) ดึง logs ทั้งหมด
+	attlogs, err := s.AppRepo.GetAttendanceLogs()
 	if err != nil {
 		return nil, err
 	}
 
-	// collect employeeIDs
-	employeeSet := make(map[string]struct{})
-	for _, att := range attendanceLogs {
-		employeeSet[att.UserNo] = struct{}{}
+	// 2) เตรียม map employee_id -> user_id
+	empIDSet := make(map[string]struct{})
+	for _, att := range attlogs {
+		empIDSet[att.UserNo] = struct{}{}
 	}
-
-	employeeIDs := make([]string, 0, len(employeeSet))
-	for id := range employeeSet {
-		employeeIDs = append(employeeIDs, id)
+	empIDs := make([]string, 0, len(empIDSet))
+	for id := range empIDSet {
+		empIDs = append(empIDs, id)
 	}
-
-	// ดึง userID map ทีเดียว
-	userMap, err := s.UserRepo.GetUserIDMapByEmployeeIDs(employeeIDs)
+	userIDMap, err := s.UserRepo.GetUserIDMapByEmployeeIDs(empIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	// group user_no + work_date
+	// 3) group ตาม (user_id, work_date)
 	type groupKey struct {
 		UserID   int64
 		WorkDate time.Time
 	}
-
-	grouped := make(map[groupKey][]model.Attendance)
-
-	for _, att := range attendanceLogs {
-		UserID, ok := userMap[att.UserNo]
+	group := make(map[groupKey][]model.Attendance)
+	for _, att := range attlogs {
+		userID, ok := userIDMap[att.UserNo]
 		if !ok {
 			continue
 		}
-
-		workDate := time.Date(
-			att.SJ.Year(),
-			att.SJ.Month(),
-			att.SJ.Day(),
-			0, 0, 0, 0,
-			att.SJ.Location(),
-		)
-		key := groupKey{
-			UserID:   UserID,
-			WorkDate: workDate,
-		}
-		grouped[key] = append(grouped[key], att)
+		workDate := time.Date(att.SJ.Year(), att.SJ.Month(), att.SJ.Day(), 0, 0, 0, 0, att.SJ.Location())
+		key := groupKey{UserID: userID, WorkDate: workDate}
+		group[key] = append(group[key], att)
 	}
 
+	// 4) เดินทีละ group แล้วค่อยไปหากะ / OT / วันหยุด + คำนวณ daily
 	now := time.Now()
-	result := make([]model.AttendanceDaily, 0, len(grouped))
-	for key, logs := range grouped {
-		// เรียงเวลา
+	result := make([]model.AttendanceDaily, 0, len(group))
+
+	for key, logs := range group {
+		// เรียงสแกนตามเวลา
 		sort.Slice(logs, func(i, j int) bool {
 			return logs[i].SJ.Before(logs[j].SJ)
 		})
 
-		// หาแสกนครั้งแรกและครั้งสุดท้าย
 		firstIn := logs[0].SJ
 		lastOut := logs[len(logs)-1].SJ
-
-		// แปลง raw logs เป็น JSON
 		rawJSON, _ := json.Marshal(logs)
 
 		daily := model.AttendanceDaily{
 			UserID:           key.UserID,
 			WorkDate:         key.WorkDate,
-			DayType:          "workday", // สมมติเป็นวันทำงานก่อน
+			DayType:          "workday",
 			AttendanceStatus: "present",
 			FirstIn:          &firstIn,
 			LastOut:          &lastOut,
@@ -187,59 +316,33 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 			CalculatedAt:     ptrTime(now),
 		}
 
-		// แปลง attendance logs -> []EditableScan -> EditedScansJSON
-		editableScans := make([]model.EditableScan, 0, len(logs))
-		for _, l := range logs {
-			editableScans = append(editableScans, model.EditableScan{
-				ScanTime:  l.SJ,
-				Type:      fxToType(l.FX),
-				Action:    "added",
-				CreatedBy: 0,
-				CreatedAt: l.SJ,
-			})
-		}
-
-		b, err := json.Marshal(editableScans)
-		if err != nil {
-			return nil, err
-		}
-		daily.EditedScansJSON = b
-		daily.EditVersion = 0
-
-		// =========================
-		// 🔹 กำหนด Shift ตรงนี้
-		// =========================
-		// shift = mockup shift 8:00-17:00
-		// shift := s.getMockShift(key.UserID, key.WorkDate)
+		// 4.1 หา shift สำหรับวันนั้น
 		shifts, err := s.ShiftRepo.GetUserShiftByUserIDAndDate(key.UserID, key.WorkDate)
 		if err != nil {
 			return nil, err
 		}
 		if len(shifts) == 0 {
-			// ถ้าไม่มีข้อมูลกะงาน ให้ข้ามการคำนวณเวลาทำงาน และถือว่าเป็น missing scan เพราะไม่มีข้อมูลกะงานมาเทียบ
 			daily.MissingScan = true
 			result = append(result, daily)
 			continue
 		}
-
-		// เก็บเฉพาะเวลาเป็น string เช่น "08:00:00" เตรียมข้อมูลเป็น string postgres แปลง string -> time.Time ให้เอง
-		// จากผลลัพธ์ที่อาจมีหลาย record เลือกตัวแรกมาใช้
 		selected := shifts[0]
-		shiftStart := fmt.Sprintf("%02d:%02d:00", selected.ShiftDetails.StartTime.Hour(), selected.ShiftDetails.StartTime.Minute())
-		shiftEnd := fmt.Sprintf("%02d:%02d:00", selected.ShiftDetails.EndTime.Hour(), selected.ShiftDetails.EndTime.Minute())
-
+		shiftID := selected.ShiftID
+		daily.ShiftID = &shiftID
+		shiftStart := selected.ShiftDetails.StartTime.Format("15:04:05")
+		shiftEnd := selected.ShiftDetails.EndTime.Format("15:04:05")
 		daily.ShiftStart = &shiftStart
 		daily.ShiftEnd = &shiftEnd
 		daily.BreakMinutes = selected.ShiftDetails.BreakMinutes
 
-		// =========================
-		// 🔹 เรียก calculate หลังจากมีข้อมูลครบ
-		// =========================
+		// 4.2 หา OT / holiday ตาม key.WorkDate ถ้าต้องใช้
+		// ot, err := s.OTRepo.GetOTDetailByEmployeeCodeAndDate(key.UserID, key.WorkDate.Format("2026-12-31"))
+		// holiday, err := s.HolidayRepo.GetHolidayByDate(key.WorkDate.Format("2026-12-31"))
+
+		// 4.3 คำนวณเวลาทำงาน + duplicate scan
 		if err := s.calculateWorkMinutes(&daily); err != nil {
 			return nil, err
 		}
-
-		// เรียกใช้ฟังก์ชันตรวจสอบการแสกนซ้ำ (duplicate scan) โดยดูจาก EditedScansJSON
 		if err := s.checkDuplicateScans(&daily); err != nil {
 			return nil, err
 		}
@@ -264,6 +367,14 @@ func fxToType(fx int) string {
 	default:
 		return "unknown" // หรือค่า default อื่น
 	}
+}
+
+func (s *AttendanceService) matchOTToShift(userID int64, otDate time.Time, ot reqmodel.OTDetail) (*dto.UserShiftAndShiftDetails, string, error) {
+	// 1) ดึง shift ตาม otDate และ (ถ้าจำเป็น) otDate-1 สำหรับกะดึก
+
+	// 2) สร้าง shiftStart/shiftEnd แบบ full datetime (ถ้า IsNightShift ให้ shiftEnd ข้ามวัน)
+	// 3) สร้าง otStart/otEnd จาก ot.Date + StartOT/StopOT
+	// 4) เลือก shift ที่ ot ชิดกับมันที่สุด แล้วบอกด้วยว่าเป็น "before" หรือ "after"
 }
 
 // func คำนวณเวลาทำงาน และเวลาสาย กลับก่อน จาก EditedScansJSON

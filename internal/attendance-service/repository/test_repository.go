@@ -10,6 +10,7 @@ type AttendanceRepositoryInterface interface {
 	BulkInsert([]attmodel.Attendance) error
 	GetAttendanceDaily() ([]attmodel.AttendanceDaily, error)
 	GetAttendanceDailyByEmployeeID(employeeID int64) ([]attmodel.AttendanceDaily, error)
+	GetAttendanceDailyByEmployeeIDAndDate(employeeID int64, date string) ([]attmodel.AttendanceDaily, error)
 	GetAttendanceDailyByEmployeeIDAndDateRange(employeeID int64, startDate, endDate string) ([]attmodel.AttendanceDaily, error)
 	GetAttendanceDailyByDate(startDate, endDate string) ([]attmodel.AttendanceDaily, error)
 }

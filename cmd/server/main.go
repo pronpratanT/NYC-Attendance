@@ -9,6 +9,8 @@ import (
 
 	attroute "hr-program/internal/attendance-service/app/router"
 	atthandler "hr-program/internal/attendance-service/handler"
+	reqroute "hr-program/internal/request-service/app/router"
+	reqhandler "hr-program/internal/request-service/handler"
 	usrroute "hr-program/internal/user-service/app/router"
 	usrhandler "hr-program/internal/user-service/handler"
 
@@ -54,18 +56,20 @@ func main() {
 	econsRepo := reqrepo.NewEconsRepository(econsDB)
 
 	// Init services
-	attendanceService := attservice.NewAttendanceService(attCloudRepo, attAppRepo, usrAppRepo, shiftAppRepo)
+	attendanceService := attservice.NewAttendanceService(attCloudRepo, attAppRepo, usrAppRepo, shiftAppRepo, otAppRepo, holidayRepo)
 	userService := usrservice.NewUserService(usrCloudRepo, usrAppRepo, depAppRepo, depCloudRepo, shiftSqlExpressRepo, shiftAppRepo)
 	requestService := reqservice.NewRequestService(otAppRepo, econsRepo, usrAppRepo, holidayRepo)
 
 	// handler + router
 	attendanceHandler := atthandler.NewAttendanceHandler(attendanceService)
 	userHandler := usrhandler.NewUserHandler(userService)
+	reqHandler := reqhandler.NewRequestHandler(requestService)
 
 	r := gin.Default()
 
 	attroute.AttendanceRouter(r, attendanceHandler)
 	usrroute.UserRouter(r, userHandler)
+	reqroute.RequestRouter(r, reqHandler)
 
 	// Initial sync เบื้องหลังครั้งแรกตอน start service
 	go func() {
@@ -78,9 +82,9 @@ func main() {
 		if err := userService.SyncFullLoadDeps(); err != nil {
 			log.Println("Initial sync departments failed:", err)
 		}
-		if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
-			log.Println("Initial process attendance daily failed:", err)
-		}
+		// if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
+		// 	log.Println("Initial process attendance daily failed:", err)
+		// }
 		if err := requestService.SyncFullLoadOT(); err != nil {
 			log.Println("Initial sync OT requests failed:", err)
 		}
@@ -110,10 +114,10 @@ func main() {
 				log.Println("Scheduled sync attendance failed:", err)
 				continue
 			}
-			if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
-				log.Println("Scheduled process attendance daily failed:", err)
-				continue
-			}
+			// if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
+			// 	log.Println("Scheduled process attendance daily failed:", err)
+			// 	continue
+			// }
 			if err := requestService.SyncFullLoadOT(); err != nil {
 				log.Println("Scheduled sync OT requests failed:", err)
 				continue

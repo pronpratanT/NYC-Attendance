@@ -16,6 +16,10 @@ func NewOTRepository(db *gorm.DB) *OTRepository {
 	return &OTRepository{DB: db}
 }
 
+type OTRepositoryInterface interface {
+	GetOTDetailByEmployeeCodeAndDate(employeeID int64, date string) ([]model.OTDetail, error)
+}
+
 func (r *OTRepository) BulkInsert(data []model.OTlogs) error {
 	// Use a safe batch size to avoid Postgres 65535-parameter limit
 	const batchSize = 500
@@ -85,4 +89,10 @@ func (r *OTRepository) GetOTDocsBySequences(sequences []int64) ([]model.OTDoc, e
 		return nil, err
 	}
 	return docs, nil
+}
+
+func (r *OTRepository) GetOTDetailByEmployeeCodeAndDate(employeeID int64, date string) ([]model.OTDetail, error) {
+	var ot []model.OTDetail
+	err := r.DB.Where("employee_id = ? AND date = ?", employeeID, date).Find(&ot).Error
+	return ot, err
 }

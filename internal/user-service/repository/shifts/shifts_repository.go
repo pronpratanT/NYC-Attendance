@@ -19,6 +19,7 @@ func NewShiftsRepository(db *gorm.DB) *ShiftsRepository {
 
 type ShiftRepositoryInterface interface {
 	GetUserShiftByUserIDs(userIDs []int64) ([]model.UserShifts, error)
+	GetShiftByID(shiftID int64) ([]model.Shifts, error)
 	GetUserShiftByUserIDAndDate(userID int64, date time.Time) ([]dto.UserShiftAndShiftDetails, error)
 }
 
@@ -26,6 +27,12 @@ func (r *ShiftsRepository) GetAllShifts() ([]model.Shifts, error) {
 	var shifts []model.Shifts
 	err := r.DB.Find(&shifts).Error
 	return shifts, err
+}
+
+func (r *ShiftsRepository) GetShiftByID(shiftID int64) ([]model.Shifts, error) {
+	var shift []model.Shifts
+	err := r.DB.Where("id = ?", shiftID).Find(&shift).Error
+	return shift, err
 }
 
 func (r *ShiftsRepository) GetAllUsersShifts() ([]model.UserShifts, error) {
@@ -38,6 +45,103 @@ func (r *ShiftsRepository) GetUserShiftByUserIDs(userIDs []int64) ([]model.UserS
 	var usr []model.UserShifts
 	err := r.DB.Where("user_id IN ?", userIDs).Find(&usr).Error
 	return usr, err
+}
+
+func (r *ShiftsRepository) GetUserShiftByUserIDAndDateRange(userID int64, dateStart, dateEnd time.Time) ([]dto.UserShiftAndShiftDetails, error) {
+	var rows []struct {
+		UserID       int64      `gorm:"column:user_id"`
+		ShiftID      int64      `gorm:"column:shift_id"`
+		StartDate    time.Time  `gorm:"column:start_date"`
+		EndDate      *time.Time `gorm:"column:end_date"`
+		ID           int64      `gorm:"column:id"`
+		ShiftKey     int        `gorm:"column:shift_key"`
+		ShiftCode    string     `gorm:"column:shift_code"`
+		ShiftName    string     `gorm:"column:shift_name"`
+		StartTime    string     `gorm:"column:start_time"`
+		EndTime      string     `gorm:"column:end_time"`
+		Break        bool       `gorm:"column:break"`
+		BreakOut     string     `gorm:"column:break_out"`
+		BreakIn      string     `gorm:"column:break_in"`
+		BreakMinutes int        `gorm:"column:break_minutes"`
+		IsNightShift bool       `gorm:"column:is_night_shift"`
+		LivingCost   float64    `gorm:"column:living_cost"`
+	}
+	err := r.DB.Table("user_shifts AS us").
+		Joins("JOIN shifts AS s ON us.shift_id = s.id").
+		Where(
+			"us.user_id = ? AND us.start_date <= ? AND (us.end_date IS NULL OR us.end_date >= ?)",
+			userID, dateEnd, dateStart,
+		).
+		Select(`
+			us.user_id,
+            us.shift_id,
+            us.start_date,
+            us.end_date,
+            s.id,
+            s.shift_key,
+            s.shift_code,
+            s.shift_name,
+            s.start_time,
+            s.end_time,
+            s.break,
+            s.break_out,
+            s.break_in,
+            s.break_minutes,
+            s.is_night_shift,
+            s.living_cost
+		`).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// map ไปเป็น DTO ของคุณ
+	var result []dto.UserShiftAndShiftDetails
+	for _, rrow := range rows {
+		// พยายาม parse string -> time.Time ถ้า format ไม่ถูก ให้ใช้ค่า zero time แทน
+		parseTime := func(s string) time.Time {
+			if s == "" {
+				return time.Time{}
+			}
+			// รองรับรูปแบบ HH:MM:SS (เช่น 08:00:00)
+			if t, err := time.Parse("15:04:05", s); err == nil {
+				return t
+			}
+			// ถ้าเป็นรูปแบบเต็มที่มีวันที่หรือ timezone ให้ลองปล่อย driver จัดการรูปแบบมาตรฐาน
+			if t, err := time.Parse(time.RFC3339, s); err == nil {
+				return t
+			}
+			return time.Time{}
+		}
+
+		var endDateStr *string
+		if rrow.EndDate != nil {
+			s := rrow.EndDate.Format("2006-01-02")
+			endDateStr = &s
+		}
+		result = append(result, dto.UserShiftAndShiftDetails{
+			UserID:    rrow.UserID,
+			ShiftID:   rrow.ShiftID,
+			StartDate: rrow.StartDate.Format("2006-01-02"),
+			EndDate:   endDateStr,
+			ShiftDetails: dto.ShiftDetails{
+				ID:           rrow.ID,
+				ShiftKey:     rrow.ShiftKey,
+				ShiftCode:    rrow.ShiftCode,
+				ShiftName:    rrow.ShiftName,
+				StartTime:    parseTime(rrow.StartTime),
+				EndTime:      parseTime(rrow.EndTime),
+				Break:        rrow.Break,
+				BreakOut:     parseTime(rrow.BreakOut),
+				BreakIn:      parseTime(rrow.BreakIn),
+				BreakMinutes: rrow.BreakMinutes,
+				IsNightShift: rrow.IsNightShift,
+				LivingCost:   rrow.LivingCost,
+			},
+		})
+	}
+
+	return result, nil
 }
 
 func (r *ShiftsRepository) GetUserShiftByUserIDAndDate(userID int64, date time.Time) ([]dto.UserShiftAndShiftDetails, error) {
@@ -65,6 +169,7 @@ func (r *ShiftsRepository) GetUserShiftByUserIDAndDate(userID int64, date time.T
 			"us.user_id = ? AND us.start_date <= ? AND (us.end_date IS NULL OR us.end_date >= ?)",
 			userID, date, date,
 		).
+		Order("us.start_date DESC").
 		Select(`
 			us.user_id,
             us.shift_id,

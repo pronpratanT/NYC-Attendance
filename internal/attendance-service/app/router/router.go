@@ -7,7 +7,6 @@ import (
 )
 
 func AttendanceRouter(r *gin.Engine, h *handler.AttendanceHandler) *gin.Engine {
-
 	api := r.Group("/api")
 	handler.AttendanceRoutes(api.Group("/attendance"), h)
 
