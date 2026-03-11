@@ -9,8 +9,8 @@ type OTDetail struct {
 	EmployeeCode string    `gorm:"column:employee_code;size:100" json:"employee_code"`
 	TypeOT       string    `gorm:"column:type_ot;size:20" json:"type_ot"`
 	Date         time.Time `gorm:"column:date;type:date;not null" json:"date"`
-	StartOT      time.Time `gorm:"column:start_ot;type:time" json:"start_ot"`
-	StopOT       time.Time `gorm:"column:stop_ot;type:time" json:"stop_ot"`
+	StartOT      string    `gorm:"column:start_ot" json:"start_ot"`
+	StopOT       string    `gorm:"column:stop_ot" json:"stop_ot"`
 	WorkOT       string    `gorm:"column:work_ot;size:255" json:"work_ot"` // งาน OT โดยรวม
 
 	SourceLogID int64 `gorm:"column:source_log_id;index" json:"source_log_id"` // ot_logs.id

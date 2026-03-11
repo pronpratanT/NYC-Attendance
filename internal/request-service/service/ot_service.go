@@ -226,14 +226,14 @@ func (s *RequestService) OTLogsProcessing() ([]model.OTDoc, []model.OTDetail, er
 				return nil, nil, err
 			}
 		}
-		startTime, err := time.Parse("15:04:05", r.StartOT)
-		if err != nil {
-			return nil, nil, err
-		}
-		stopTime, err := time.Parse("15:04:05", r.StopOT)
-		if err != nil {
-			return nil, nil, err
-		}
+		// startTime, err := time.Parse("15:04:05", r.StartOT)
+		// if err != nil {
+		// 	return nil, nil, err
+		// }
+		// stopTime, err := time.Parse("15:04:05", r.StopOT)
+		// if err != nil {
+		// 	return nil, nil, err
+		// }
 
 		var userID int64
 		if id, ok := userMap[r.EmployeeCode]; ok {
@@ -275,8 +275,8 @@ func (s *RequestService) OTLogsProcessing() ([]model.OTDoc, []model.OTDetail, er
 			EmployeeCode: r.EmployeeCode,
 			Date:         parsedDate,
 			TypeOT:       r.TypeOT,
-			StartOT:      startTime,
-			StopOT:       stopTime,
+			StartOT:      r.StartOT,
+			StopOT:       r.StopOT,
 			WorkOT:       r.WorkOT,
 			SourceLogID:  r.ID,
 			Sequence:     r.Sequence,

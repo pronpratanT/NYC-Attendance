@@ -2,7 +2,8 @@ package service
 
 import (
 	"encoding/json"
-	"hr-program/internal/user-service/dto"
+	attdto "hr-program/internal/attendance-service/dto"
+	usrdto "hr-program/internal/user-service/dto"
 	model "hr-program/shared/models/attendance"
 	reqmodel "hr-program/shared/models/request"
 	"log"
@@ -316,6 +317,24 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 			CalculatedAt:     ptrTime(now),
 		}
 
+		editableScans := make([]model.EditableScan, 0, len(logs))
+		for _, l := range logs {
+			editableScans = append(editableScans, model.EditableScan{
+				ScanTime:  l.SJ,
+				Type:      fxToType(l.FX),
+				Action:    "added",
+				CreatedBy: 0,
+				CreatedAt: l.SJ,
+			})
+		}
+
+		editedJSON, err := json.Marshal(editableScans)
+		if err != nil {
+			return nil, err
+		}
+		daily.EditedScansJSON = editedJSON
+		daily.EditVersion = 0
+
 		// 4.1 หา shift สำหรับวันนั้น
 		shifts, err := s.ShiftRepo.GetUserShiftByUserIDAndDate(key.UserID, key.WorkDate)
 		if err != nil {
@@ -336,14 +355,25 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 		daily.BreakMinutes = selected.ShiftDetails.BreakMinutes
 
 		// 4.2 หา OT / holiday ตาม key.WorkDate ถ้าต้องใช้
-		// ot, err := s.OTRepo.GetOTDetailByEmployeeCodeAndDate(key.UserID, key.WorkDate.Format("2026-12-31"))
+		ots, err := s.OTRepo.GetOTDetailByEmployeeCodeAndDate(key.UserID, key.WorkDate.Format("2006-01-02"))
+		if err != nil {
+			return nil, err
+		}
 		// holiday, err := s.HolidayRepo.GetHolidayByDate(key.WorkDate.Format("2026-12-31"))
 
-		// 4.3 คำนวณเวลาทำงาน + duplicate scan
-		if err := s.calculateWorkMinutes(&daily); err != nil {
+		shiftMapOT, err := s.matchOTToShift(shifts, ots)
+		if err != nil {
+			return nil, err
+		}
+
+		// 4.3 คำนวณเวลาทำงาน + duplicate scan + ot minutes
+		if err := s.calculateWorkMinutes(&daily, shifts); err != nil {
 			return nil, err
 		}
 		if err := s.checkDuplicateScans(&daily); err != nil {
+			return nil, err
+		}
+		if err := s.calculateOTminutes(&daily, shiftMapOT); err != nil {
 			return nil, err
 		}
 
@@ -353,121 +383,295 @@ func (s *AttendanceService) AttendanceLogsProcessing() ([]model.AttendanceDaily,
 	return result, nil
 }
 
-func ptrTime(t time.Time) *time.Time {
-	return &t
-}
-
-// helper: แปลง FX จาก attendance_logs เป็น "in"/"out"
-func fxToType(fx int) string {
-	switch fx {
-	case 1:
-		return "in"
-	case 2:
-		return "out"
-	default:
-		return "unknown" // หรือค่า default อื่น
+// func สำหรับ match OT กับกะงาน เพื่อกำหนด relation (before/after/overlap) และเตรียมข้อมูล OTDetailsByDate
+func (s *AttendanceService) matchOTToShift(shifts []usrdto.UserShiftAndShiftDetails, ots []reqmodel.OTDetail) (*attdto.UserShiftAndOTByDate, error) {
+	if len(ots) == 0 || len(shifts) == 0 {
+		return nil, nil // ไม่มีข้อมูลกะงาน ให้ข้ามการคำนวณ OT
 	}
+
+	// ใช้กะตัวแรกของวันนั้น (API /shift-user-date คืนมารูปแบบนี้)
+	shift := shifts[0]
+	shiftDet := shift.ShiftDetails
+	otDate := ots[0].Date
+
+	// 1) สร้าง full datetime ของเวลาในกะ: เข้างาน / ออกงาน / ออกเบรค / เข้าเบรค
+	shiftStart := time.Date(
+		otDate.Year(), otDate.Month(), otDate.Day(),
+		shiftDet.StartTime.Hour(), shiftDet.StartTime.Minute(), shiftDet.StartTime.Second(),
+		0, otDate.Location(),
+	)
+	shiftEnd := time.Date(
+		otDate.Year(), otDate.Month(), otDate.Day(),
+		shiftDet.EndTime.Hour(), shiftDet.EndTime.Minute(), shiftDet.EndTime.Second(),
+		0, otDate.Location(),
+	)
+	breakOut := time.Date(
+		otDate.Year(), otDate.Month(), otDate.Day(),
+		shiftDet.BreakOut.Hour(), shiftDet.BreakOut.Minute(), shiftDet.BreakOut.Second(),
+		0, otDate.Location(),
+	)
+	breakIn := time.Date(
+		otDate.Year(), otDate.Month(), otDate.Day(),
+		shiftDet.BreakIn.Hour(), shiftDet.BreakIn.Minute(), shiftDet.BreakIn.Second(),
+		0, otDate.Location(),
+	)
+
+	// ถ้าเป็นกะดึกและเวลาเลิกน้อยกว่าเวลาเริ่ม ให้เลื่อนวันเลิกไปวันถัดไป
+	if shiftDet.IsNightShift && shiftEnd.Before(shiftStart) {
+		shiftEnd = shiftEnd.Add(24 * time.Hour)
+		breakOut = breakOut.Add(24 * time.Hour)
+		breakIn = breakIn.Add(24 * time.Hour)
+	}
+
+	// 2) เตรียมก้อนผลลัพธ์ (ยังไม่ใส่ OT)
+	shiftDetailsDTO := attdto.ShiftDetails{
+		ID:           shiftDet.ID,
+		ShiftKey:     shiftDet.ShiftKey,
+		ShiftCode:    shiftDet.ShiftCode,
+		ShiftName:    shiftDet.ShiftName,
+		StartTime:    shiftDet.StartTime,
+		EndTime:      shiftDet.EndTime,
+		Break:        shiftDet.Break,
+		BreakOut:     shiftDet.BreakOut,
+		BreakIn:      shiftDet.BreakIn,
+		BreakMinutes: shiftDet.BreakMinutes,
+		IsNightShift: shiftDet.IsNightShift,
+		LivingCost:   shiftDet.LivingCost,
+	}
+
+	result := &attdto.UserShiftAndOTByDate{
+		UserID:          shift.UserID,
+		ShiftID:         shift.ShiftID,
+		ShiftDetails:    shiftDetailsDTO,
+		StartDate:       shift.StartDate,
+		EndDate:         shift.EndDate,
+		OTDetailsByDate: make([]attdto.OTDetailsByDate, 0, len(ots)),
+	}
+
+	// 3) วนทุก OT ของวันนั้น แล้วคำนวณ relation + append เข้าไป
+	for _, ot := range ots {
+		// 3.1 สร้างช่วงเวลา OT จาก ot.Date + start_ot/stop_ot
+		otStartClock, err := time.Parse("15:04:05", ot.StartOT)
+		if err != nil {
+			return nil, err
+		}
+		otStopClock, err := time.Parse("15:04:05", ot.StopOT)
+		if err != nil {
+			return nil, err
+		}
+
+		otStart := time.Date(
+			otDate.Year(), otDate.Month(), otDate.Day(),
+			otStartClock.Hour(), otStartClock.Minute(), otStartClock.Second(),
+			0, otDate.Location(),
+		)
+		otEnd := time.Date(
+			otDate.Year(), otDate.Month(), otDate.Day(),
+			otStopClock.Hour(), otStopClock.Minute(), otStopClock.Second(),
+			0, otDate.Location(),
+		)
+		if otEnd.Before(otStart) {
+			otEnd = otEnd.Add(24 * time.Hour)
+		}
+
+		// 3.2 หาว่า OT นี้ before / after / overlap กับกะ
+		relation := "overlap"
+		if otEnd.Before(otStart) || otEnd.Equal(shiftStart) {
+			relation = "before"
+		} else if otStart.After(shiftEnd) || otStart.Equal(shiftEnd) {
+			relation = "after"
+		}
+
+		// 3.3 สร้าง OTDetailsByDate แล้ว append
+		otByDate := attdto.OTDetailsByDate{
+			OTID:     int64(ot.ID),
+			OTDocID:  ot.OTDocID,
+			Date:     ot.Date.Format("2006-01-02"), // layout มาตรฐาน
+			StartOT:  ot.StartOT,
+			StopOT:   ot.StopOT,
+			WorkOT:   ot.WorkOT,
+			Relation: relation,
+		}
+
+		result.OTDetailsByDate = append(result.OTDetailsByDate, otByDate)
+	}
+
+	return result, nil
 }
 
-func (s *AttendanceService) matchOTToShift(userID int64, otDate time.Time, ot reqmodel.OTDetail) (*dto.UserShiftAndShiftDetails, string, error) {
-	// 1) ดึง shift ตาม otDate และ (ถ้าจำเป็น) otDate-1 สำหรับกะดึก
+func (s *AttendanceService) calculateOTminutes(daily *model.AttendanceDaily, shiftMapOT *attdto.UserShiftAndOTByDate) error {
+	if shiftMapOT == nil {
+		daily.OTBeforeMinutes = 0
+		daily.OTAfterMinutes = 0
+		daily.TotalOTMinutes = 0
+		daily.TotalWorkMinutes = daily.NormalWorkMinutes
+		return nil
+	}
 
-	// 2) สร้าง shiftStart/shiftEnd แบบ full datetime (ถ้า IsNightShift ให้ shiftEnd ข้ามวัน)
-	// 3) สร้าง otStart/otEnd จาก ot.Date + StartOT/StopOT
-	// 4) เลือก shift ที่ ot ชิดกับมันที่สุด แล้วบอกด้วยว่าเป็น "before" หรือ "after"
+	shiftStart := buildClockOnDate(daily.WorkDate, shiftMapOT.ShiftDetails.StartTime)
+	shiftEnd := buildClockOnDate(daily.WorkDate, shiftMapOT.ShiftDetails.EndTime)
+
+	if shiftMapOT.ShiftDetails.IsNightShift && shiftEnd.Before(shiftStart) {
+		shiftEnd = shiftEnd.Add(24 * time.Hour)
+	}
+
+	beforeMinutes := 0
+	afterMinutes := 0
+
+	for _, ot := range shiftMapOT.OTDetailsByDate {
+		otStart, err := parseClockStringOnDate(daily.WorkDate, ot.StartOT)
+		if err != nil {
+			return err
+		}
+		otEnd, err := parseClockStringOnDate(daily.WorkDate, ot.StopOT)
+		if err != nil {
+			return err
+		}
+
+		if otEnd.Before(otStart) {
+			otEnd = otEnd.Add(24 * time.Hour)
+		}
+
+		if otStart.Before(shiftStart) {
+			beforeEnd := minTime(otEnd, shiftStart)
+			if beforeEnd.After(otStart) {
+				beforeMinutes += int(beforeEnd.Sub(otStart).Minutes())
+			}
+		}
+
+		if otEnd.After(shiftEnd) {
+			afterStart := maxTime(otStart, shiftEnd)
+			if otEnd.After(afterStart) {
+				afterMinutes += int(otEnd.Sub(afterStart).Minutes())
+			}
+		}
+	}
+
+	daily.OTBeforeMinutes = beforeMinutes
+	daily.OTAfterMinutes = afterMinutes
+	daily.TotalOTMinutes = beforeMinutes + afterMinutes
+	daily.TotalWorkMinutes = daily.NormalWorkMinutes + daily.TotalOTMinutes
+
+	return nil
 }
 
 // func คำนวณเวลาทำงาน และเวลาสาย กลับก่อน จาก EditedScansJSON
-func (s *AttendanceService) calculateWorkMinutes(daily *model.AttendanceDaily) error {
-	if daily.ShiftStart == nil || daily.ShiftEnd == nil {
-		return nil // ไม่มีข้อมูลกะงาน ไม่สามารถคำนวณได้
+func (s *AttendanceService) calculateWorkMinutes(daily *model.AttendanceDaily, shifts []usrdto.UserShiftAndShiftDetails) error {
+	if len(shifts) == 0 || daily.ShiftStart == nil || daily.ShiftEnd == nil {
+		return nil
 	}
 
-	// แปลง string เวลา (HH:MM:SS) ให้เป็น time.Time ตามวันที่ของ WorkDate
-	shiftStartTime, err := buildShiftDateTime(daily.WorkDate, *daily.ShiftStart)
-	if err != nil {
-		return err
+	shift := shifts[0].ShiftDetails
+	shiftStart := buildClockOnDate(daily.WorkDate, shift.StartTime)
+	shiftEnd := buildClockOnDate(daily.WorkDate, shift.EndTime)
+
+	if shift.IsNightShift && shiftEnd.Before(shiftStart) {
+		shiftEnd = shiftEnd.Add(24 * time.Hour)
 	}
-	shiftEndTime, err := buildShiftDateTime(daily.WorkDate, *daily.ShiftEnd)
-	if err != nil {
-		return err
+
+	hasBreak := shift.Break
+	var breakStart, breakEnd time.Time
+	if hasBreak {
+		breakStart = buildClockOnDate(daily.WorkDate, shift.BreakOut)
+		breakEnd = buildClockOnDate(daily.WorkDate, shift.BreakIn)
+
+		if shift.IsNightShift && breakEnd.Before(breakStart) {
+			breakEnd = breakEnd.Add(24 * time.Hour)
+		}
 	}
 
 	var scans []model.EditableScan
 	if err := json.Unmarshal(daily.EditedScansJSON, &scans); err != nil {
 		return err
 	}
-
 	if len(scans) == 0 {
-		return nil // ไม่มีสแกน ไม่สามารถคำนวณได้
+		return nil
 	}
 
-	// เรียงสแกนตามเวลา
 	sort.Slice(scans, func(i, j int) bool {
 		return scans[i].ScanTime.Before(scans[j].ScanTime)
 	})
 
-	// 1. คำนวณ Total Work Minutes
-	totalMinutes := 0
+	validScans := make([]model.EditableScan, 0, len(scans))
+	for _, scan := range scans {
+		if scan.Action != "deleted" {
+			validScans = append(validScans, scan)
+		}
+	}
+	if len(validScans) == 0 {
+		return nil
+	}
+
+	totalNormalMinutes := 0
 	var currentIn *time.Time
 
-	for _, scan := range scans {
-		if scan.Action == "deleted" {
-			continue // ข้ามสแกนที่ถูกลบ
-		}
-
+	for _, scan := range validScans {
 		switch scan.Type {
 		case "in":
 			currentIn = &scan.ScanTime
+
 		case "out":
-			if currentIn != nil {
-				// คำนวณเวลาทำงานระหว่าง currentIn กับ scan.ScanTime
-				duration := scan.ScanTime.Sub(*currentIn)
-				totalMinutes += int(duration.Minutes())
-				currentIn = nil
+			if currentIn == nil {
+				continue
 			}
+
+			intervalStart := *currentIn
+			intervalEnd := scan.ScanTime
+			if intervalEnd.Before(intervalStart) {
+				currentIn = nil
+				continue
+			}
+
+			normalMinutes := overlapMinutes(intervalStart, intervalEnd, shiftStart, shiftEnd)
+
+			if hasBreak && normalMinutes > 0 {
+				normalMinutes -= overlapMinutes(intervalStart, intervalEnd, breakStart, breakEnd)
+				if normalMinutes < 0 {
+					normalMinutes = 0
+				}
+			}
+
+			totalNormalMinutes += normalMinutes
+			currentIn = nil
 		}
 	}
 
-	// ถ้า in ค้าง -> missing scan
 	if currentIn != nil {
-		daily.MissingScan = true // มีสแกนเข้าแต่ไม่มีสแกนออก
+		daily.MissingScan = true
 	}
 
-	// จำกัดเวลาทำงานปกติ สูงสุดไม่เกิน 8 ชั่วโมง (480 นาที)
-	if totalMinutes > 480 {
-		totalMinutes = 480
+	maxNormalMinutes := int(shiftEnd.Sub(shiftStart).Minutes())
+	if hasBreak {
+		maxNormalMinutes -= int(breakEnd.Sub(breakStart).Minutes())
+	}
+	if maxNormalMinutes < 0 {
+		maxNormalMinutes = 0
+	}
+	if totalNormalMinutes > maxNormalMinutes {
+		totalNormalMinutes = maxNormalMinutes
 	}
 
-	daily.TotalWorkMinutes = totalMinutes
-	daily.NormalWorkMinutes = totalMinutes
+	first := validScans[0]
+	last := validScans[len(validScans)-1]
 
-	// 2. คำนวณ Late Minutes มาสาย
-	first := scans[0]
 	late := 0
-	graceMinutes := 1 // กำหนดเวลายืดหยุ่น 1 นาที
-
-	if first.Type == "in" && first.ScanTime.After(*shiftStartTime) {
-
-		diff := int(first.ScanTime.Sub(*shiftStartTime).Minutes())
-
+	graceMinutes := 1
+	if first.Type == "in" && first.ScanTime.After(shiftStart) {
+		diff := int(first.ScanTime.Sub(shiftStart).Minutes())
 		if diff > graceMinutes {
 			late = diff
-		} else {
-			late = 0
 		}
 	}
 
-	daily.LateMinutes = late
-
-	// 3. คำนวณ Early Leave Minutes กลับก่อน
-	last := scans[len(scans)-1]
 	early := 0
-	if last.Type == "out" && last.ScanTime.Before(*shiftEndTime) {
-		early = int(shiftEndTime.Sub(last.ScanTime).Minutes())
+	if last.Type == "out" && last.ScanTime.Before(shiftEnd) {
+		early = int(shiftEnd.Sub(last.ScanTime).Minutes())
 	}
 
+	daily.NormalWorkMinutes = totalNormalMinutes
+	daily.LateMinutes = late
 	daily.EarlyLeaveMinutes = early
+	daily.TotalWorkMinutes = daily.NormalWorkMinutes + daily.TotalOTMinutes
 
 	return nil
 }
@@ -537,23 +741,85 @@ func buildShiftDateTime(workDate time.Time, t string) (*time.Time, error) {
 	return &shift, nil
 }
 
-// ------------Mockup shift---------------
-type Shift struct {
-	StartHour    int
-	StartMinute  int
-	EndHour      int
-	EndMinute    int
-	BreakMinutes int
+func buildClockOnDate(workDate time.Time, clock time.Time) time.Time {
+	return time.Date(
+		workDate.Year(),
+		workDate.Month(),
+		workDate.Day(),
+		clock.Hour(),
+		clock.Minute(),
+		clock.Second(),
+		0,
+		workDate.Location(),
+	)
 }
 
-func (s *AttendanceService) getMockShift(userID int64, workDate time.Time) Shift {
-	return Shift{
-		StartHour:    8,
-		StartMinute:  0,
-		EndHour:      17,
-		EndMinute:    0,
-		BreakMinutes: 60,
+func parseClockStringOnDate(workDate time.Time, value string) (time.Time, error) {
+	parsed, err := time.Parse("15:04:05", value)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Date(
+		workDate.Year(),
+		workDate.Month(),
+		workDate.Day(),
+		parsed.Hour(),
+		parsed.Minute(),
+		parsed.Second(),
+		0,
+		workDate.Location(),
+	), nil
+}
+
+func minTime(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+func overlapMinutes(aStart, aEnd, bStart, bEnd time.Time) int {
+	if aEnd.Before(aStart) || bEnd.Before(bStart) {
+		return 0
+	}
+
+	start := aStart
+	if bStart.After(start) {
+		start = bStart
+	}
+
+	end := aEnd
+	if bEnd.Before(end) {
+		end = bEnd
+	}
+
+	if !end.After(start) {
+		return 0
+	}
+
+	return int(end.Sub(start).Minutes())
+}
+
+func ptrTime(t time.Time) *time.Time {
+	return &t
+}
+
+// helper: แปลง FX จาก attendance_logs เป็น "in"/"out"
+func fxToType(fx int) string {
+	switch fx {
+	case 1:
+		return "in"
+	case 2:
+		return "out"
+	default:
+		return "unknown" // หรือค่า default อื่น
 	}
 }
-
-// ---------------------------------------

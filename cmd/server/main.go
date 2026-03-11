@@ -82,9 +82,9 @@ func main() {
 		if err := userService.SyncFullLoadDeps(); err != nil {
 			log.Println("Initial sync departments failed:", err)
 		}
-		// if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
-		// 	log.Println("Initial process attendance daily failed:", err)
-		// }
+		if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
+			log.Println("Initial process attendance daily failed:", err)
+		}
 		if err := requestService.SyncFullLoadOT(); err != nil {
 			log.Println("Initial sync OT requests failed:", err)
 		}
@@ -114,10 +114,10 @@ func main() {
 				log.Println("Scheduled sync attendance failed:", err)
 				continue
 			}
-			// if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
-			// 	log.Println("Scheduled process attendance daily failed:", err)
-			// 	continue
-			// }
+			if err := attendanceService.GenerateAndSaveAttendanceDaily(); err != nil {
+				log.Println("Scheduled process attendance daily failed:", err)
+				continue
+			}
 			if err := requestService.SyncFullLoadOT(); err != nil {
 				log.Println("Scheduled sync OT requests failed:", err)
 				continue
