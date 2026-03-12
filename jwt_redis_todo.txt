@@ -1,0 +1,82 @@
+JWT + Redis Implementation TODO
+
+Goal
+- Add login with JWT access token and Redis-backed session tracking.
+- Keep the first version simple: login, token issue, middleware check, logout.
+
+Why Redis is used
+- Control token/session expiry with TTL.
+- Revoke token/session immediately on logout.
+- Keep lightweight session metadata for audit and troubleshooting.
+
+Phase 1: Infrastructure
+- [x] Add Redis service to docker-compose.yml
+  Purpose: run Redis by Docker without installing it directly on the machine.
+- [x] Add Redis/JWT config fields in shared/config/config.go
+  Purpose: avoid hardcoding secret, TTL, and Redis address.
+- [ ] Add Redis connection in shared/connection/connection.go
+  Purpose: reuse one central Redis client across services and middleware.
+
+Phase 2: User lookup for login
+- [ ] Add repository method to get user by employee_id
+  Purpose: login must find the correct user record before checking password.
+- [ ] Review how password is stored in users table
+  Purpose: determine whether current passwords are plain text or already hashed.
+- [ ] Decide temporary auth mode for development
+  Purpose: if passwords are still plain text, allow dev-only login now and plan bcrypt migration.
+
+Phase 3: JWT helper
+- [ ] Add JWT utility for generate/verify token
+  Purpose: isolate token logic from handler/service code.
+- [ ] Put claims in token: user_id, employee_id, jti, iat, exp
+  Purpose: let middleware identify session and validate expiry.
+
+Phase 4: Redis session store
+- [ ] Define Redis key format: auth:session:{jti}
+  Purpose: make lookup, revoke, and cleanup predictable.
+- [ ] Define session payload fields
+  Purpose: store user_id, employee_id, issued_at, expires_at, ip, user_agent, revoked.
+- [ ] Save session with TTL equal to access token lifetime
+  Purpose: let Redis auto-expire inactive/expired sessions.
+
+Phase 5: Auth API
+- [ ] Create auth request/response DTOs
+  Purpose: standardize login input and token output.
+- [ ] Create auth service login flow
+  Purpose: validate user, check password, generate jti, issue JWT, save session.
+- [ ] Add POST /api/auth/login endpoint
+  Purpose: allow client to request a token.
+
+Phase 6: Middleware
+- [ ] Add JWT auth middleware in shared/middleware
+  Purpose: protect routes requiring login.
+- [ ] Middleware steps
+  Purpose: read Bearer token, verify JWT, read jti, check Redis session, attach user context.
+
+Phase 7: Logout and revoke
+- [ ] Add POST /api/auth/logout endpoint
+  Purpose: remove or revoke Redis session immediately.
+- [ ] Decide whether to delete session key or mark revoked=true
+  Purpose: balance simplicity vs audit visibility.
+
+Phase 8: Protect routes gradually
+- [ ] Protect attendance export routes first
+  Purpose: secure sensitive downloadable data.
+- [ ] Protect attendance daily and request routes next
+  Purpose: expand auth coverage without breaking all APIs at once.
+
+Phase 9: Hardening
+- [ ] Migrate passwords to bcrypt hashes
+  Purpose: make login suitable for production use.
+- [ ] Consider refresh token later
+  Purpose: keep short access token lifetime without forcing frequent re-login.
+- [ ] Add audit log table in Postgres if long-term login history is needed
+  Purpose: Redis is good for active session state, not ideal as long-term audit storage.
+
+Suggested first implementation slice
+1. Redis connection
+2. User lookup by employee_id
+3. JWT helper
+4. Login endpoint
+5. Middleware on one protected route
+6. Logout endpoint

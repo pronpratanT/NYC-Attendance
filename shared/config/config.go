@@ -14,6 +14,12 @@ type Config struct {
 	ECONS_SQLSERVER_DSN string
 	SQLExpressDSN       string
 	CloudtimeDSN        string
+	RedisHost           string
+	RedisPort           string
+	RedisPassword       string
+	RedisDB             string
+	JWTSecret           string
+	JWTAccessTTLMinutes string
 }
 
 var AppConfig *Config
@@ -86,6 +92,12 @@ func LoadConfig() {
 		ECONS_SQLSERVER_DSN: ECONS_SQLSERVER_DSN,
 		SQLExpressDSN:       sqlExpressDSN,
 		CloudtimeDSN:        cloudtimeDSN,
+		RedisHost:           mustEnv("REDIS_HOST"),
+		RedisPort:           mustEnv("REDIS_PORT"),
+		RedisPassword:       mustEnv("REDIS_PASSWORD"),
+		RedisDB:             mustEnv("REDIS_DB"),
+		JWTSecret:           mustEnv("JWT_SECRET"),
+		JWTAccessTTLMinutes: mustEnv("JWT_ACCESS_TTL_MINUTES"),
 	}
 }
 

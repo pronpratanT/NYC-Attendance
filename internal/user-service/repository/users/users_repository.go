@@ -18,6 +18,7 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 
 type UserRepositoryInterface interface {
 	GetUserIDMapByEmployeeIDs(employeeIDs []string) (map[string]int64, error)
+	GetUserByEmployeeID(employeeID string) (*model.Users, error)
 }
 
 func (r *UserRepository) BulkInsert(data []model.Users) error {
@@ -82,4 +83,13 @@ func (r *UserRepository) GetUserIDMapByEmployeeIDs(employeeIDs []string) (map[st
 	}
 
 	return result, nil
+}
+
+func (r *UserRepository) GetUserByEmployeeID(employeeID string) (*model.Users, error) {
+	var user model.Users
+	err := r.DB.Where("employee_id = ?", employeeID).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

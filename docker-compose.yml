@@ -24,12 +24,22 @@ services:
     ports:
       - "5050:80"
 
+  redis:
+    image: redis:7-alpine
+    container_name: hr-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
   app:
     build: .
     container_name: hr-backend
     restart: always
     depends_on:
       - postgres
+      - redis
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -51,8 +61,17 @@ services:
       SQLEXPRESS_PORT: ${SQLEXPRESS_PORT}
       SQLEXPRESS_DB: ${SQLEXPRESS_DB}
       SQLEXPRESS_INSTANCE: ${SQLEXPRESS_INSTANCE}
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES}
+
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB}
     ports:
       - "8080:8080"
 
 volumes:
   postgres_data:
+  redis_data:

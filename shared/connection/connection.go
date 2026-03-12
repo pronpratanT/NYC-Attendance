@@ -1,12 +1,15 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"hr-program/shared/config"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlserver"
@@ -19,6 +22,7 @@ var (
 	AppDB        *gorm.DB
 	EconsDB      *gorm.DB
 	SqlExpressDB *gorm.DB
+	RedisClient  *redis.Client
 )
 
 func ConnectDB() *gorm.DB {
@@ -142,4 +146,36 @@ func ConnectSQLExpress() *gorm.DB {
 	SqlExpressDB = db
 	log.Println("SQL Express Connected Successfully")
 	return SqlExpressDB
+}
+
+func ConnectRedis() *redis.Client {
+	if RedisClient != nil {
+		return RedisClient
+	}
+
+	config.LoadConfig()
+
+	Redis, err := strconv.Atoi(config.AppConfig.RedisDB)
+	if err != nil {
+		log.Fatalf("Error connecting RedisDB: %v", err)
+	}
+
+	addr := fmt.Sprintf(
+		"%s:%s",
+		os.Getenv("REDIS_HOST"),
+		os.Getenv("REDIS_PORT"),
+	)
+
+	RedisClient := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: config.AppConfig.RedisPassword,
+		DB:       Redis,
+	})
+
+	if err := RedisClient.Ping(context.Background()).Err(); err != nil {
+		log.Fatalf("Error connecting to Redis: %v", err)
+	}
+
+	log.Println("Connected to Redis successfully", addr)
+	return RedisClient
 }

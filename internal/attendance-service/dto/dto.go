@@ -51,3 +51,12 @@ type OTDetailsByDate struct {
 	WorkOT   string `json:"work_ot"`
 	Relation string `json:"relation"` // "before_shift", "after_shift", "holiday", "other"
 }
+
+type AttendanceLogsExport struct {
+	ID        int64     `json:"id"`
+	UserNo    string    `json:"user_no"`
+	SJ        time.Time `json:"sj"`
+	UserLname string    `json:"user_lname"`
+	MC        string    `json:"mc"`
+	Iden      string    `json:"iden"`
+}

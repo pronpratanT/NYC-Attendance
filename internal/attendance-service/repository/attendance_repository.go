@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"hr-program/internal/attendance-service/dto"
 	model "hr-program/shared/models/attendance"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -146,5 +148,37 @@ func (r *AttendanceRepository) GetAttendanceLogs() ([]model.Attendance, error) {
 		}
 		attendance = append(attendance, att)
 	}
+	return attendance, nil
+}
+
+func (r *AttendanceRepository) GetAttendanceLogsByDateRange(startDate, endDate string) ([]dto.AttendanceLogsExport, error) {
+	const dateLayout = "2006-01-02"
+
+	start, err := time.Parse(dateLayout, startDate)
+	if err != nil {
+		log.Println("Invalid start_date:", err)
+		return nil, err
+	}
+
+	end, err := time.Parse(dateLayout, endDate)
+	if err != nil {
+		log.Println("Invalid end_date:", err)
+		return nil, err
+	}
+
+	startTime := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
+	endExclusive := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, end.Location()).AddDate(0, 0, 1)
+
+	var attendance []dto.AttendanceLogsExport
+	if err := r.DB.
+		Model(&model.Attendance{}).
+		Select("id, user_no, user_lname, sj, mc, iden").
+		Where("sj >= ? AND sj < ?", startTime, endExclusive).
+		Order("sj ASC").
+		Scan(&attendance).Error; err != nil {
+		log.Println("Failed to get attendance logs by date range:", err)
+		return nil, err
+	}
+
 	return attendance, nil
 }

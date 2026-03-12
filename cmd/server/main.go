@@ -37,6 +37,9 @@ func main() {
 	econsDB := db.ConnectEcons()
 	sqlExpressDB := db.ConnectSQLExpress()
 
+	redisClient := db.ConnectRedis()
+	_ = redisClient // Currently not used in this service, but connected for future use
+
 	// Init repositories for attendance service
 	attAppRepo := attrepo.NewAttendanceRepository(appDB)
 	attCloudRepo := attrepo.NewCloudtimeRepository(cloudDB)

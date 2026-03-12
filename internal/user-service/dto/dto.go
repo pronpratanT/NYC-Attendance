@@ -2,6 +2,17 @@ package dto
 
 import "time"
 
+type LoginRequest struct {
+	EmployeeID string `json:"employee_id" binding:"required"`
+	Password   string `json:"password" binding:"required"`
+}
+
+type LoginResponse struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresAt   int64  `json:"expires_at"`
+}
+
 type UserShiftAndShiftDetails struct {
 	UserID       int64        `json:"user_id"`
 	ShiftID      int64        `json:"shift_id"`
