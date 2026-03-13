@@ -16,4 +16,5 @@ func NewRequestHandler(s *service.RequestService) *RequestHandler {
 
 func RequestRoutes(r *gin.RouterGroup, h *RequestHandler) {
 	r.GET("/ot-details/:employee_id/:date", h.GetOTDetailsByUserIDAndDate)
+	r.GET("/ot-logs/export", h.ExportOTLogsByDateRange)
 }

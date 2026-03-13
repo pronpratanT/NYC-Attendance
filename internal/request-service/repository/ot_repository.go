@@ -26,8 +26,33 @@ func (r *OTRepository) BulkInsert(data []model.OTlogs) error {
 
 	return r.DB.
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			DoNothing: true,
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"hr_check",
+				"sequence",
+				"department",
+				"dep",
+				"shift_ot",
+				"type_ot",
+				"date",
+				"ab",
+				"employee_code",
+				"start_ot",
+				"stop_ot",
+				"work_ot",
+				"approve",
+				"request_ap",
+				"request_tap",
+				"chief_ap",
+				"chief_tap",
+				"manager_ap",
+				"manager_tap",
+				"hr_ap",
+				"hr_tap",
+				"delete_name",
+				"delete_time",
+				"create_date",
+			}),
 		}).
 		CreateInBatches(data, batchSize).Error
 }
@@ -94,5 +119,11 @@ func (r *OTRepository) GetOTDocsBySequences(sequences []int64) ([]model.OTDoc, e
 func (r *OTRepository) GetOTDetailByEmployeeCodeAndDate(employeeID int64, date string) ([]model.OTDetail, error) {
 	var ot []model.OTDetail
 	err := r.DB.Where("employee_id = ? AND date = ?", employeeID, date).Find(&ot).Error
+	return ot, err
+}
+
+func (r *OTRepository) GetOTlogsByDateRange(startDate, endDate string) ([]model.OTlogs, error) {
+	var ot []model.OTlogs
+	err := r.DB.Where("hr_check = ? AND date BETWEEN ? AND ? ORDER BY date DESC", "APPROVE", startDate, endDate).Find(&ot).Error
 	return ot, err
 }

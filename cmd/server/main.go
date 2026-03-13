@@ -110,7 +110,7 @@ func main() {
 
 	// Scheduler รัน sync + generate attendance_daily ซ้ำทุก ๆ 10 นาที โดยไม่ต้อง restart container
 	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
+		ticker := time.NewTicker(20 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
 			if err := attendanceService.SyncFullLoadAttendance(); err != nil {

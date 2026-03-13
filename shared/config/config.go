@@ -94,7 +94,7 @@ func LoadConfig() {
 		CloudtimeDSN:        cloudtimeDSN,
 		RedisHost:           mustEnv("REDIS_HOST"),
 		RedisPort:           mustEnv("REDIS_PORT"),
-		RedisPassword:       mustEnv("REDIS_PASSWORD"),
+		RedisPassword:       getEnv("REDIS_PASSWORD", ""),
 		RedisDB:             mustEnv("REDIS_DB"),
 		JWTSecret:           mustEnv("JWT_SECRET"),
 		JWTAccessTTLMinutes: mustEnv("JWT_ACCESS_TTL_MINUTES"),

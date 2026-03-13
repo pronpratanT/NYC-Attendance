@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"hr-program/internal/request-service/dto"
 	model "hr-program/shared/models/request"
 )
 
@@ -290,4 +291,68 @@ func (s *RequestService) OTLogsProcessing() ([]model.OTDoc, []model.OTDetail, er
 	}
 
 	return otDocs, details, nil
+}
+
+// FIX ยังเหลือการลบการแสกนซ้ำอยู่
+func (s *RequestService) ExportOTLogsByDateRange(startDate, endDate string) ([]dto.OTExport, error) {
+	otLogs, err := s.AppRepo.GetOTlogsByDateRange(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	var exports []dto.OTExport
+	for _, log := range otLogs {
+		var TypeOTs string
+
+		switch log.TypeOT {
+		case "010001":
+			TypeOTs = "10008"
+		case "010002":
+			if log.AB == "Before" {
+				TypeOTs = "10001"
+			} else {
+				TypeOTs = "10003"
+			}
+		case "010003":
+			TypeOTs = "10009"
+		case "010004":
+			TypeOTs = "10007"
+		}
+
+		var approved int
+		if log.ChiefAP != "" && log.ManagerAP != "" && log.HRAP != "" {
+			approved = 1
+		} else if log.ChiefAP == "" || log.ManagerAP == "" || log.HRAP == "" {
+			approved = 0
+		}
+
+		var hours float32
+		if log.StartOT != "" && log.StopOT != "" {
+			startTime, err1 := time.Parse("15:04:05", log.StartOT)
+			stopTime, err2 := time.Parse("15:04:05", log.StopOT)
+			if err1 == nil && err2 == nil {
+				duration := stopTime.Sub(startTime)
+				hours = float32(duration.Hours())
+			}
+		}
+
+		formattedDate := ""
+		if len(log.Date) >= 10 {
+			if t, err := time.Parse("2006-01-02", log.Date[:10]); err == nil {
+				formattedDate = t.Format("20060102")
+			}
+		}
+
+		exports = append(exports, dto.OTExport{
+			EmployeeCode: log.EmployeeCode,
+			Date:         formattedDate,
+			ShiftID:      "00",
+			TypeOT:       log.TypeOT,
+			TypeOTs:      TypeOTs,
+			Approve:      approved,
+			Hours:        hours,
+		})
+	}
+
+	return exports, nil
 }
