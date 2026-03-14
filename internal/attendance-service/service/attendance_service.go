@@ -21,7 +21,38 @@ func (s *AttendanceService) GetAttendanceLogs() ([]model.Attendance, error) {
 }
 
 func (s *AttendanceService) GetAttendanceLogsByDateRange(startDate, endDate string) ([]dto.AttendanceLogsExport, error) {
-	return s.AppRepo.GetAttendanceLogsByDateRange(startDate, endDate)
+	attendance, err := s.AppRepo.GetAttendanceLogsByDateRange(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(attendance) == 0 {
+		return attendance, nil
+	}
+
+	// กรอง duplicate scan: ถ้า user เดียวกันมี SJ ห่างจากครั้งก่อนหน้าไม่เกิน 2 นาที ให้ถือว่าเป็นสแกนซ้ำ
+	threshold := 2 * time.Minute
+	lastSeen := make(map[string]time.Time) // user_no -> last SJ kept
+	filtered := make([]dto.AttendanceLogsExport, 0, len(attendance))
+
+	for _, att := range attendance {
+		prev, ok := lastSeen[att.UserNo]
+		if ok {
+			diff := att.SJ.Sub(prev)
+			if diff < 0 {
+				diff = -diff
+			}
+			if diff <= threshold {
+				// ภายใน 2 นาทีจากครั้งก่อนของ user เดิม => ถือเป็นสแกนซ้ำ ข้าม และพิมพ์ออก log เพื่อช่วยตรวจสอบ
+				log.Printf("duplicate scan user=%s prev=%s current=%s diff=%s", att.UserNo, prev.Format(time.RFC3339), att.SJ.Format(time.RFC3339), diff)
+				continue
+			}
+		}
+
+		lastSeen[att.UserNo] = att.SJ
+		filtered = append(filtered, att)
+	}
+	return filtered, nil
 }
 
 // ดึงและ sync attendance logs จาก Cloudtime -> app DB

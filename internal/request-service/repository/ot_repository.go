@@ -124,6 +124,6 @@ func (r *OTRepository) GetOTDetailByEmployeeCodeAndDate(employeeID int64, date s
 
 func (r *OTRepository) GetOTlogsByDateRange(startDate, endDate string) ([]model.OTlogs, error) {
 	var ot []model.OTlogs
-	err := r.DB.Where("hr_check = ? AND date BETWEEN ? AND ? ORDER BY date DESC", "APPROVE", startDate, endDate).Find(&ot).Error
+	err := r.DB.Where("approve = ? AND hr_check = ? AND date BETWEEN ? AND ? ORDER BY date ASC", "hr_approve", "APPROVE", startDate, endDate).Find(&ot).Error
 	return ot, err
 }
