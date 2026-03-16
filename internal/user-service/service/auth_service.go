@@ -66,9 +66,15 @@ func (s *UserService) Login(employeeID, password, ip, userAgent string, redisCli
 	}
 
 	return &dto.LoginResponse{
-		AccessToken: token,
-		TokenType:   "Bearer",
-		ExpiresAt:   expiresAt,
+		UserID:       user.ID,
+		EmployeeID:   user.EmployeeID,
+		DepartmentID: user.DepartmentID,
+		FName:        user.FName,
+		LName:        user.LName,
+		IsActive:     user.IsActive,
+		AccessToken:  token,
+		TokenType:    "Bearer",
+		ExpiresAt:    expiresAt,
 	}, nil
 }
 

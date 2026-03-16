@@ -8,9 +8,15 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresAt   int64  `json:"expires_at"`
+	UserID       int64  `json:"user_id"`
+	EmployeeID   string `json:"employee_id"`
+	DepartmentID int64  `json:"department_id"`
+	FName        string `json:"f_name"`
+	LName        string `json:"l_name"`
+	IsActive     bool   `json:"is_active"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresAt    int64  `json:"expires_at"`
 }
 
 type UserShiftAndShiftDetails struct {
