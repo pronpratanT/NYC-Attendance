@@ -2,6 +2,7 @@ package handler
 
 import (
 	"hr-program/internal/request-service/service"
+	"hr-program/shared/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,6 +16,8 @@ func NewRequestHandler(s *service.RequestService) *RequestHandler {
 }
 
 func RequestRoutes(r *gin.RouterGroup, h *RequestHandler) {
-	r.GET("/ot-details/:employee_id/:date", h.GetOTDetailsByUserIDAndDate)
-	r.GET("/ot-logs/export", h.ExportOTLogsByDateRange)
+	protected := r.Group("")
+	protected.Use(middleware.JWTAuth())
+	protected.GET("/ot-details/:employee_id/:date", h.GetOTDetailsByUserIDAndDate)
+	protected.GET("/ot-logs/export", h.ExportOTLogsByDateRange)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -20,6 +21,7 @@ type Config struct {
 	RedisDB             string
 	JWTSecret           string
 	JWTAccessTTLMinutes string
+	CORSAllowedOrigins  []string
 }
 
 var AppConfig *Config
@@ -98,6 +100,7 @@ func LoadConfig() {
 		RedisDB:             mustEnv("REDIS_DB"),
 		JWTSecret:           mustEnv("JWT_SECRET"),
 		JWTAccessTTLMinutes: mustEnv("JWT_ACCESS_TTL_MINUTES"),
+		CORSAllowedOrigins:  splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")),
 	}
 }
 
@@ -116,4 +119,17 @@ func mustEnv(key string) string {
 		log.Fatalf("%s not set", key)
 	}
 	return val
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+	return result
 }

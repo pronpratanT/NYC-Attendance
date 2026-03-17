@@ -16,6 +16,7 @@ import (
 
 	"hr-program/shared/config"
 	db "hr-program/shared/connection"
+	"hr-program/shared/middleware"
 
 	attservice "hr-program/internal/attendance-service/service"
 	reqservice "hr-program/internal/request-service/service"
@@ -69,6 +70,7 @@ func main() {
 	reqHandler := reqhandler.NewRequestHandler(requestService)
 
 	r := gin.Default()
+	r.Use(middleware.CORS())
 
 	attroute.AttendanceRouter(r, attendanceHandler)
 	usrroute.UserRouter(r, userHandler)
