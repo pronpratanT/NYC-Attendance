@@ -86,10 +86,10 @@ func (h *AttendanceHandler) GetAttendanceDailyByEmployeeIDAndDateRange(c *gin.Co
 	})
 }
 
-func (h *AttendanceHandler) GetAttendanceDailyByDate(c *gin.Context) {
+func (h *AttendanceHandler) GetAttendanceDailyByDateRange(c *gin.Context) {
 	startDate := c.Param("start_date")
 	endDate := c.Param("end_date")
-	daily, err := h.Service.AppRepo.GetAttendanceDailyByDate(startDate, endDate)
+	daily, err := h.Service.AppRepo.GetAttendanceDailyByDateRange(startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to retrieve attendance daily",

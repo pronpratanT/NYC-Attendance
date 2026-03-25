@@ -93,7 +93,7 @@ func (r *AttendanceRepository) GetAttendanceDailyByEmployeeIDAndDateRange(employ
 	return attendance, nil
 }
 
-func (r *AttendanceRepository) GetAttendanceDailyByDate(startDate, endDate string) ([]model.AttendanceDaily, error) {
+func (r *AttendanceRepository) GetAttendanceDailyByDateRange(startDate, endDate string) ([]model.AttendanceDaily, error) {
 	var attendance []model.AttendanceDaily
 	if err := r.DB.
 		Model(&model.AttendanceDaily{}).
@@ -180,5 +180,25 @@ func (r *AttendanceRepository) GetAttendanceLogsByDateRange(startDate, endDate s
 		return nil, err
 	}
 
+	return attendance, nil
+}
+
+func (r *AttendanceRepository) GetAttendanceDailyByDate(date string) ([]model.AttendanceDaily, error) {
+	const dateLayout = "2006-01-02"
+
+	parsedDate, err := time.Parse(dateLayout, date)
+	if err != nil {
+		log.Println("Invalid date:", err)
+		return nil, err
+	}
+
+	var attendance []model.AttendanceDaily
+	if err := r.DB.
+		Model(&model.AttendanceDaily{}).
+		Where("work_date = ?", parsedDate).
+		Find(&attendance).Error; err != nil {
+		log.Println("Failed to get attendance daily by date:", err)
+		return nil, err
+	}
 	return attendance, nil
 }

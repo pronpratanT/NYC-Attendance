@@ -10,6 +10,8 @@ import (
 
 type UserRepositoryInterface interface {
 	GetUserIDMapByEmployeeIDs(employeeIDs []string) (map[string]int64, error)
+	GetUserByEmployeeID(employeeID string) (*shfmodel.Users, error)
+	GetAllUsers() ([]shfmodel.Users, error)
 }
 
 type ShiftRepositoryInterface interface {

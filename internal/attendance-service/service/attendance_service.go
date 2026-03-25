@@ -8,6 +8,7 @@ import (
 	usrdto "hr-program/internal/user-service/dto"
 	model "hr-program/shared/models/attendance"
 	reqmodel "hr-program/shared/models/request"
+	userModel "hr-program/shared/models/users"
 	"log"
 	"sort"
 	"strings"
@@ -53,6 +54,63 @@ func (s *AttendanceService) GetAttendanceLogsByDateRange(startDate, endDate stri
 		filtered = append(filtered, att)
 	}
 	return filtered, nil
+}
+
+func (s *AttendanceService) GetAttendanceDailyByDate(date string) ([]dto.AttendanceDailyDate, error) {
+	attendance, err := s.AppRepo.GetAttendanceDailyByDate(date)
+	if err != nil {
+		return nil, err
+	}
+
+	employee, err := s.UserRepo.GetAllUsers()
+	if err != nil {
+		return nil, err
+	}
+
+	empMap := make(map[int64]userModel.Users)
+	for _, emp := range employee {
+		empMap[emp.ID] = emp
+	}
+
+	// track user present
+	presentSet := make(map[int64]bool)
+
+	var presentList []dto.PresentDaily
+	for _, att := range attendance {
+		emp, ok := empMap[att.UserID]
+		if !ok {
+			continue
+		}
+
+		var editedScans []dto.EditedScan
+		if len(att.EditedScansJSON) > 0 {
+			if err := json.Unmarshal(att.EditedScansJSON, &editedScans); err != nil {
+				return nil, err
+			}
+		}
+
+		present := dto.PresentDaily{
+			UserID:          emp.ID,
+			EmployeeID:      emp.EmployeeID,
+			DepartmentID:    emp.DepartmentID,
+			FName:           emp.FName,
+			LName:           emp.LName,
+			FirstIn:         *att.FirstIn,
+			LastOut:         *att.LastOut,
+			EditedScansJson: editedScans,
+		}
+		presentList = append(presentList, present)
+		presentSet[emp.ID] = true
+	}
+
+	var absentList []dto.AbsentDaily
+	for _, emp := range employee {
+		if !presentSet[emp.ID] {
+			
+		}
+	}
+
+	return presentList, nil
 }
 
 // ดึงและ sync attendance logs จาก Cloudtime -> app DB

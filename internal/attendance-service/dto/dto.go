@@ -60,3 +60,35 @@ type AttendanceLogsExport struct {
 	MC        string    `json:"mc"`
 	Iden      string    `json:"iden"`
 }
+
+type AttendanceDailyDate struct {
+	Date         string         `json:"date"`
+	PresentDaily []PresentDaily `json:"present_daily"`
+	AbsentDaily  []AbsentDaily  `json:"absent_daily"`
+}
+
+type PresentDaily struct {
+	UserID          int64        `json:"user_id"`
+	EmployeeID      string       `json:"employee_id"`
+	DepartmentID    int64        `json:"department_id"`
+	FName           string       `json:"f_name"`
+	LName           string       `json:"l_name"`
+	FirstIn         time.Time    `json:"first_in"`
+	LastOut         time.Time    `json:"last_out"`
+	EditedScansJson []EditedScan `json:"edited_scans_json"`
+}
+
+type EditedScan struct {
+	Type      string `json:"type"`
+	Action    string `json:"action"`
+	ScanTime  string `json:"scan_time"`
+	CreatedAt string `json:"created_at"`
+	CreatedBy int    `json:"created_by"`
+}
+
+type AbsentDaily struct {
+	EmployeeID   string `json:"employee_id"`
+	DepartmentID int64  `json:"department_id"`
+	FName        string `json:"f_name"`
+	LName        string `json:"l_name"`
+}

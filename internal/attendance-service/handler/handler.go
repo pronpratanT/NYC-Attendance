@@ -25,7 +25,7 @@ func AttendanceRoutes(r *gin.RouterGroup, h *AttendanceHandler) {
 	protected.GET("/attendance-daily", h.GetAttendanceDaily)
 	protected.GET("/attendance-daily/by-employee/:employee_id", h.GetAttendanceDailyByEmployeeID)
 	protected.GET("/attendance-daily/by-employee/:employee_id/:start_date/:end_date", h.GetAttendanceDailyByEmployeeIDAndDateRange)
-	protected.GET("/attendance-daily/by-date/:start_date/:end_date", h.GetAttendanceDailyByDate)
+	protected.GET("/attendance-daily/by-date/:start_date/:end_date", h.GetAttendanceDailyByDateRange)
 	protected.GET("/attendance-logs/date-range", h.GetAttendanceLogsByDateRange)
 	protected.GET("/attendance-logs/export/txt", h.ExportAttendanceLogsTXTByDateRange)
 }
